@@ -1,0 +1,11 @@
+// Created by Grigore Stefan <g_stefan@yahoo.com>
+// Public domain (Unlicense) <http://unlicense.org>
+// SPDX-FileCopyrightText: 2022 Grigore Stefan <g_stefan@yahoo.com>
+// SPDX-License-Identifier: Unlicense
+
+Theorem/Grammar Transform
+
+1. E = A & B | A; => E = A & B?;
+2. E = A & B | A & C; => E =  A & ( B | C );
+3. E = E & A | B; => E = B & A*;
+4. ((A)+)? => A*

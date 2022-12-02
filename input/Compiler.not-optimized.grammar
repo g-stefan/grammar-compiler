@@ -1,0 +1,75 @@
+/*
+// Created by Grigore Stefan <g_stefan@yahoo.com>
+// Public domain (Unlicense) <http://unlicense.org>
+// SPDX-FileCopyrightText: 2022 Grigore Stefan <g_stefan@yahoo.com>
+// SPDX-License-Identifier: Unlicense
+
+Grammar used by Grammar Compiler
+
+"..." - Terminal (String)
+. - Any, only one occurrence [Read Input]
+| - Alternation [Binary]
+& - Concatenation [Binary]
+! - Negation [Unary, Left]
+( ) - Group
+? - Zero or one occurrences, [Unary, Right]
+* - Zero or more occurrences, [Unary, Right]
++ - One or more occurrences, [Unary, Right]
+{m} - Matches the preceding element at least m times , [Unary, Right] , m is Number
+{m,n} - Matches the preceding element at least m and not more than n times , [Unary, Right] , m and n is Number, n > m
+[x,y] - Interval match (x,y are strings)
+; - End of statement
+= - Assignment, Left is symbol, right is expression
+|= Add alternation to existing symbol
+&= Add concatenation to existing symbol
+.* - Read until end of input
+
+*/
+BOM = "\xEF\xBB\xBF";
+NewLine = "\r\n" | "\n";
+WhiteSpace = (" " | "\t" | NewLine | BOM)+;
+LineComment = ( "//" | "#" ) & (!NewLine & .)* & NewLine;
+MultilineComment = "/*" & (!"*/" & .)* & "*/";
+Comment = (LineComment | MultilineComment)+;
+WhiteSpaceOrComment = (WhiteSpace | Comment)+;
+String = "\""  & ( !"\"" & ( ("\\" & . ) | . ) )* & "\"";
+Number = ["0","9"]+;
+Symbol = ("_" | ["a","z"] | ["A","Z"]) & ("_" | ["A","Z"] | ["a","z"] | ["0","9"])*;
+Alternation = "|";
+Concatenation = "&";
+Negation = "!";
+Any = ".";
+ZeroOrOne = "?";
+ZeroOrMore = "*";
+OneOrMore = "+";
+IntervalBegin = "[";
+IntervalEnd = "]";
+IntervalSeparator = ",";
+Interval = IntervalBegin & WS & String & WS & IntervalSeparator & WS & String & WS & IntervalEnd;
+CountIntervalBegin = "{";
+CountIntervalEnd = "}";
+CountIntervalSeparator = ",";
+CountInterval = CountIntervalBegin & WS & Number & (CountIntervalSeparator & WS & Number )? & WS & CountIntervalEnd;
+GroupBegin="(";
+GroupEnd=")";
+Group = GroupBegin & WS & Expression & WS & GroupEnd;
+ExpressionTerm = 
+ Any
+ | Symbol
+ | String
+ | Interval
+ | Group
+ | Negation & WS & ExpressionTerm;
+ExpressionTermExtended = 
+ ExpressionTerm & WS & ZeroOrOne
+| ExpressionTerm & WS & ZeroOrMore
+| ExpressionTerm & WS & OneOrMore
+| ExpressionTerm & WS & CountInterval
+| ExpressionTerm;
+Expression = 
+ ExpressionTermExtended & ( WS & (Alternation | Concatenation) & WS & ExpressionTermExtended )+
+| ExpressionTermExtended;
+Assign = "=";
+StatementEnd = ";";
+WS = (WhiteSpaceOrComment)?;
+Statement = Symbol & WS & (Alternation)? & (Concatenation)? & WS & Assign & WS & Expression & WS & StatementEnd;

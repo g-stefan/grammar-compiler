@@ -1,0 +1,20 @@
+{
+	"project": {
+		"name" : "grammar-compiler.test",
+		"type" : "xyo-cpp-project",
+		"make" : "exe.static",
+		"SPDX-License-Identifier": "MIT",
+		"includePath" : [
+			"output/test"
+		],
+		"sourcePath" : [
+			"XYO/GrammarCompiler.Application",
+			"@output/test/XYO/GrammarCompiler.Application/Code"
+		],
+		"dependency" : [
+			"grammar-compiler.static"
+		],
+		"outputPath" : "output/test",
+		"linkVersion" : "grammar-compiler.application"
+	}
+}

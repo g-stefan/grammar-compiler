@@ -1,0 +1,6 @@
+--grammar=../../input/Compiler.grammar
+--source-header=../../test/Test.Source.Header.hpp
+--source-namespace="XYO::GrammarCompiler::Application::CodX"
+--source-include-guard="XYO_GRAMMARCOMPILER_APPLICATION_CODX"
+--source-include-path="XYO/GrammarCompiler.Application/CodX"
+--output-folder="XYO/GrammarCompiler.Application/CodX"

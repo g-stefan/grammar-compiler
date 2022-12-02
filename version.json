@@ -1,0 +1,14 @@
+{
+	"grammar-compiler": {
+		"version": "1.0.0",
+		"build": "1",
+		"date": "2022-12-02",
+		"time": "02:00:36"
+	},
+	"grammar-compiler.application": {
+		"version": "1.0.0",
+		"build": "1",
+		"date": "2022-12-02",
+		"time": "02:00:36"
+	}
+}

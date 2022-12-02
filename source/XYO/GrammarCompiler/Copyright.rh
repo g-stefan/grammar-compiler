@@ -1,0 +1,16 @@
+// Grammar Compiler
+// Copyright (c) 2022 Grigore Stefan <g_stefan@yahoo.com>
+// MIT License (MIT) <http://opensource.org/licenses/MIT>
+// SPDX-FileCopyrightText: 2022 Grigore Stefan <g_stefan@yahoo.com>
+// SPDX-License-Identifier: MIT
+
+#ifndef XYO_GRAMMARCOMPILER_COPYRIGHT_RH
+#define XYO_GRAMMARCOMPILER_COPYRIGHT_RH
+
+#define XYO_GRAMMARCOMPILER_COPYRIGHT "Copyright (c) 2022 Grigore Stefan"
+#define XYO_GRAMMARCOMPILER_PUBLISHER "Grigore Stefan"
+#define XYO_GRAMMARCOMPILER_COMPANY XYO_GRAMMARCOMPILER_PUBLISHER
+#define XYO_GRAMMARCOMPILER_CONTACT "g_stefan@yahoo.com"
+#define XYO_GRAMMARCOMPILER_FULL_COPYRIGHT XYO_GRAMMARCOMPILER_COPYRIGHT " <" XYO_GRAMMARCOMPILER_CONTACT ">"
+
+#endif

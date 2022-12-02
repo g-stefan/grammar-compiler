@@ -1,0 +1,13 @@
+// Grammar Compiler
+// Copyright (c) 2022 Grigore Stefan <g_stefan@yahoo.com>
+// MIT License (MIT) <http://opensource.org/licenses/MIT>
+// SPDX-FileCopyrightText: 2022 Grigore Stefan <g_stefan@yahoo.com>
+// SPDX-License-Identifier: MIT
+
+#include <XYO/GrammarCompiler.Application/Application.rh>
+#include <XYO/GrammarCompiler.Application/Copyright.rh>
+#include <XYO/GrammarCompiler.Application/Version.rh>
+
+1  ICON "Application.ico"
+
+XYO_APPLICATION_VERSION_INFO(XYO_GRAMMARCOMPILER_APPLICATION,"grammar-compiler.exe","Grammar Compiler To C++")
