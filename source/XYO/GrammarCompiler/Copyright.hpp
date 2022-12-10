@@ -16,7 +16,6 @@ namespace XYO::GrammarCompiler::Copyright {
 	XYO_GRAMMARCOMPILER_EXPORT const char *publisher();
 	XYO_GRAMMARCOMPILER_EXPORT const char *company();
 	XYO_GRAMMARCOMPILER_EXPORT const char *contact();
-	XYO_GRAMMARCOMPILER_EXPORT const char *fullCopyright();
 };
 
 #endif

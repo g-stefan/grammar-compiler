@@ -47,6 +47,7 @@ namespace XYO::GrammarCompiler {
 
 	class Parser {
 			XYO_DISALLOW_COPY_ASSIGN_MOVE(Parser);
+
 		public:
 			Token *tokenList;
 			Input input;

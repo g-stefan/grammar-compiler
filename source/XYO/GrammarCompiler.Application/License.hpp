@@ -13,8 +13,7 @@
 
 namespace XYO::GrammarCompiler::Application::License {
 
-	const char *licenseHeader();
-	const char *licenseBody();
+	const char *license();
 	const char *shortLicense();
 
 };

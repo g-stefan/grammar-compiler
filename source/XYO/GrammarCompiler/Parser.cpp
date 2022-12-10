@@ -8,7 +8,7 @@
 
 namespace XYO::GrammarCompiler {
 
-	Parser::Parser(size_t inputStackSize_):input(inputStackSize_) {
+	Parser::Parser(size_t inputStackSize_) : input(inputStackSize_) {
 		tokenList = TokenList::newNode();
 	};
 

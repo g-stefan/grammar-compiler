@@ -13,7 +13,6 @@ namespace XYO::GrammarCompiler::Copyright {
 	static const char *publisher_ = XYO_GRAMMARCOMPILER_PUBLISHER;
 	static const char *company_ = XYO_GRAMMARCOMPILER_COMPANY;
 	static const char *contact_ = XYO_GRAMMARCOMPILER_CONTACT;
-	static const char *fullCopyright_ = XYO_GRAMMARCOMPILER_FULL_COPYRIGHT;
 
 	const char *copyright() {
 		return copyright_;
@@ -29,10 +28,6 @@ namespace XYO::GrammarCompiler::Copyright {
 
 	const char *contact() {
 		return contact_;
-	};
-
-	const char *fullCopyright() {
-		return fullCopyright_;
 	};
 
 };

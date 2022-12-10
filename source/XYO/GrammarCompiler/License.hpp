@@ -13,8 +13,7 @@
 
 namespace XYO::GrammarCompiler::License {
 
-	XYO_GRAMMARCOMPILER_EXPORT const char *licenseHeader();
-	XYO_GRAMMARCOMPILER_EXPORT const char *licenseBody();
+	XYO_GRAMMARCOMPILER_EXPORT const char *license();
 	XYO_GRAMMARCOMPILER_EXPORT const char *shortLicense();
 
 };

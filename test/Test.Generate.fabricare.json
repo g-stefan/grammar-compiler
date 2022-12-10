@@ -1,7 +1,7 @@
 {
 	"project": {
 		"name" : "grammar-compiler.test",
-		"type" : "xyo-cpp-project",
+		"type" : "xyo-cpp",
 		"make" : "exe.static",
 		"SPDX-License-Identifier": "MIT",
 		"includePath" : [
