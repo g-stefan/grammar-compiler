@@ -13,6 +13,10 @@ if(Project.make!="exe.static"){
 
 // ---
 
+messageAction("test");
+
+// ---
+
 Shell.mkdirRecursivelyIfNotExists("output/test");
 Shell.mkdirRecursivelyIfNotExists("temp");
 
@@ -21,7 +25,7 @@ Shell.mkdirRecursivelyIfNotExists("temp");
 Shell.setenv("PATH", Shell.realPath(Shell.getcwd()) + "\\output\\bin;" + Shell.getenv("PATH"));
 
 runInPath("output/test", function() {
-	exitIf(Shell.execute("grammar-compiler.exe @../../test/Test.Generate.arguments"));	
+	exitIf(Shell.execute("grammar-compiler @../../test/Test.Generate.arguments"));	
 });
 
 // Rebuild grammar compiler with generated code and run
@@ -29,5 +33,5 @@ runInPath("output/test", function() {
 exitIf(Shell.execute("fabricare --config=test/Test.Generate.fabricare.json"));
 
 runInPath("output/test", function() {
-	exitIf(Shell.execute("grammar-compiler.test.exe @../../test/Test.Generate.Check.arguments"));
+	exitIf(Shell.execute("grammar-compiler.test @../../test/Test.Generate.Check.arguments"));
 });
