@@ -15,6 +15,6 @@
 			"grammar-compiler.static"
 		],
 		"outputPath" : "output/test",
-		"linkVersion" : "grammar-compiler.application"
+		"noVersion" : true
 	}
 }

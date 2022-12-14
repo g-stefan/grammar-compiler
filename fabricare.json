@@ -11,7 +11,8 @@
 				"sourcePath" : "XYO/GrammarCompiler",
 				"dependency" : [
 					"xyo-system"
-				]
+				],
+				"versionName" : "grammar-compiler.library"
 			},
 			{
 				"name" : "grammar-compiler.application",
@@ -28,7 +29,7 @@
 				"defines" : [
 					"XYO_GRAMMARCOMPILER_APPLICATION_LIBRARY"
 				],
-				"linkVersion" : "grammar-compiler.application"
+				"linkVersion" : "grammar-compiler"
 			},
 			{
 				"name" : "grammar-compiler",
@@ -41,8 +42,7 @@
 				],
 				"dependency" : [
 					"grammar-compiler"
-				],
-				"versionName" : "grammar-compiler.application"
+				]
 			}
 		]
 	}
