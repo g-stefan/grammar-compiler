@@ -42,7 +42,9 @@
 				],
 				"dependency" : [
 					"grammar-compiler"
-				]
+				],
+				"hasRelease" : true,
+				"githubRelease" : true
 			}
 		]
 	}
