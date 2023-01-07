@@ -11,3 +11,4 @@
 1  ICON "Application.ico"
 
 XYO_APPLICATION_VERSION_INFO(XYO_GRAMMARCOMPILER_APPLICATION,"grammar-compiler.exe","Grammar Compiler To C++")
+XYO_APPLICATION_MANIFEST("Application.manifest")

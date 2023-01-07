@@ -5,7 +5,6 @@
 		"projects" : [
 			{
 				"name" : "grammar-compiler",
-				"type" : "xyo-cpp",
 				"make" : "lib-and-dll",
 				"SPDX-License-Identifier": "MIT",
 				"sourcePath" : "XYO/GrammarCompiler",
@@ -16,7 +15,6 @@
 			},
 			{
 				"name" : "grammar-compiler.application",
-				"type" : "xyo-cpp",
 				"make" : "lib",
 				"SPDX-License-Identifier": "MIT",
 				"sourcePath" : [
@@ -33,7 +31,6 @@
 			},
 			{
 				"name" : "grammar-compiler",
-				"type" : "xyo-cpp",
 				"make" : "exe.static",
 				"SPDX-License-Identifier": "MIT",
 				"sourcePath" : [
@@ -42,10 +39,9 @@
 				],
 				"dependency" : [
 					"grammar-compiler"
-				],
-				"hasRelease" : true,
-				"githubRelease" : true
+				]
 			}
-		]
+		],
+		"hasGithub" : true
 	}
 }
