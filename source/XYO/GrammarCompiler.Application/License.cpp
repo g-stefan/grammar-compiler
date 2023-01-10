@@ -5,6 +5,7 @@
 // SPDX-License-Identifier: MIT
 //
 
+#include <XYO/GrammarCompiler/License.hpp>
 #include <XYO/GrammarCompiler.Application/License.hpp>
 
 namespace XYO::GrammarCompiler::Application::License {
