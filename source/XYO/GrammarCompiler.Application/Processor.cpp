@@ -1395,7 +1395,7 @@ namespace XYO::GrammarCompiler::Application {
 		content += "\t\r\n";
 		content += "\tusing namespace XYO::GrammarCompiler;\r\n";
 		content += "\r\n";
-		content += "\tParserProcessToken parserTable[];\r\n";
+		content += "\textern ParserProcessToken parserTable[];\r\n";
 		content += "};\r\n";
 		content += "\r\n";
 		content += "#endif\r\n";

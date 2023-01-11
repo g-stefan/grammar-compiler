@@ -13,6 +13,6 @@ namespace XYO::GrammarCompiler::Application::Code {
 	    isStatement,
 	    isWhiteSpaceOrComment,
 	    // End
-	    nullptr};
-
+	    nullptr };
+	    
 };

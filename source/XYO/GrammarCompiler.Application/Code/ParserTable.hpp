@@ -12,7 +12,7 @@
 #endif
 
 namespace XYO::GrammarCompiler::Application::Code {
-	ParserProcessToken parserTable[];
+	extern ParserProcessToken parserTable[];
 };
 
 #endif
