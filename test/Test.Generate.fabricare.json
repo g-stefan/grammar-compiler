@@ -16,7 +16,7 @@
 					"@output/test/XYO/GrammarCompiler.Application/Code"
 				],
 				"dependency" : [
-					"grammar-compiler.static"
+					"grammar-compiler"
 				],
 				"outputPath" : "output/test",
 				"noVersion" : true
