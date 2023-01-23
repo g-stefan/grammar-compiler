@@ -1,20 +1,26 @@
 {
-	"project": {
-		"name" : "grammar-compiler.test",
+	"solution" : {
+		"name" : "grammar-compiler",
 		"type" : "xyo-cpp",
-		"make" : "exe.static",
-		"SPDX-License-Identifier": "MIT",
-		"includePath" : [
-			"output/test"
-		],
-		"sourcePath" : [
-			"XYO/GrammarCompiler.Application",
-			"@output/test/XYO/GrammarCompiler.Application/Code"
-		],
-		"dependency" : [
-			"grammar-compiler.static"
-		],
-		"outputPath" : "output/test",
-		"noVersion" : true
-	}
+		"projects" : [
+			{
+				"name" : "grammar-compiler.test",
+				"type" : "xyo-cpp",
+				"make" : "exe.static",
+				"SPDX-License-Identifier": "MIT",
+				"includePath" : [
+					"output/test"
+				],
+				"sourcePath" : [
+					"XYO/GrammarCompiler.Application",
+					"@output/test/XYO/GrammarCompiler.Application/Code"
+				],
+				"dependency" : [
+					"grammar-compiler.static"
+				],
+				"outputPath" : "output/test",
+				"noVersion" : true
+			}
+		]
+	}		
 }
