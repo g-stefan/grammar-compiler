@@ -18,7 +18,7 @@ namespace XYO::GrammarCompiler::Application {
 	void Application::showUsage() {
 		printf("Grammar Compiler - Compile grammar to c++ source code\n");
 		showVersion();
-		printf("%s\n\n", GrammarCompiler::Application::Copyright::copyright());
+		printf("%s\n\n", GrammarCompiler::Application::Copyright::copyright().c_str());
 
 		printf("%s",
 		       "options:\n"
@@ -29,7 +29,7 @@ namespace XYO::GrammarCompiler::Application {
 	};
 
 	void Application::showLicense() {
-		printf("%s", GrammarCompiler::Application::License::license());
+		printf("%s", GrammarCompiler::Application::License::license().c_str());
 	};
 
 	void Application::showVersion() {

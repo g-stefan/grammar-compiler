@@ -10,11 +10,11 @@
 
 namespace XYO::GrammarCompiler::Application::License {
 
-	const char *license() {
+	std::string license() {
 		return XYO::GrammarCompiler::License::license();
 	};
 
-	const char *shortLicense() {
+	std::string shortLicense() {
 		return XYO::GrammarCompiler::License::shortLicense();
 	};
 

@@ -12,10 +12,10 @@
 #endif
 
 namespace XYO::GrammarCompiler::Copyright {
-	XYO_GRAMMARCOMPILER_EXPORT const char *copyright();
-	XYO_GRAMMARCOMPILER_EXPORT const char *publisher();
-	XYO_GRAMMARCOMPILER_EXPORT const char *company();
-	XYO_GRAMMARCOMPILER_EXPORT const char *contact();
+	XYO_GRAMMARCOMPILER_EXPORT std::string copyright();
+	XYO_GRAMMARCOMPILER_EXPORT std::string publisher();
+	XYO_GRAMMARCOMPILER_EXPORT std::string company();
+	XYO_GRAMMARCOMPILER_EXPORT std::string contact();
 };
 
 #endif
