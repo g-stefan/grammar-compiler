@@ -18,7 +18,7 @@ namespace XYO::GrammarCompiler::Application {
 	void Application::showUsage() {
 		printf("Grammar Compiler - Compile grammar to c++ source code\n");
 		showVersion();
-		printf("%s\n\n", GrammarCompiler::Application::Copyright::copyright().c_str());
+		printf("%s\n\n", GrammarCompiler::Application::Copyright::copyright());
 
 		printf("%s",
 		       "options:\n"
@@ -80,9 +80,9 @@ namespace XYO::GrammarCompiler::Application {
 			if (StringCore::beginWith(cmdLine[i], "--")) {
 				opt = cmdLine[i].index(2);
 				optValue = "";
-				if (String::indexOf(opt, "=", 0, optIndex)) {
-					optValue = String::substring(opt, optIndex + 1);
-					opt = String::substring(opt, 0, optIndex);
+				if (StringX::indexOf(opt, "=", 0, optIndex)) {
+					optValue = StringX::substring(opt, optIndex + 1);
+					opt = StringX::substring(opt, 0, optIndex);
 				};
 				if (opt == "usage") {
 					showUsage();
