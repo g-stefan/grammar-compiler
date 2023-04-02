@@ -1,14 +1,14 @@
 {
 	"grammar-compiler.library": {
 		"version": "3.0.0",
-		"build": "2",
-		"date": "2023-02-26",
-		"time": "02:04:59"
+		"build": "3",
+		"date": "2023-04-03",
+		"time": "01:05:36"
 	},
 	"grammar-compiler": {
 		"version": "3.0.0",
-		"build": "2",
-		"date": "2023-02-26",
-		"time": "02:04:59"
+		"build": "3",
+		"date": "2023-04-03",
+		"time": "01:05:36"
 	}
 }
