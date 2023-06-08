@@ -4,8 +4,8 @@
 // SPDX-FileCopyrightText: 2022-2023 Grigore Stefan <g_stefan@yahoo.com>
 // SPDX-License-Identifier: MIT
 
-#ifndef XYO_GRAMMARCOMPILER_APPLICATION_PROCESSOR_HPP
-#define XYO_GRAMMARCOMPILER_APPLICATION_PROCESSOR_HPP
+#ifndef XYO_GRAMMARCOMPILER_APPLICATION_GENERATOR_HPP
+#define XYO_GRAMMARCOMPILER_APPLICATION_GENERATOR_HPP
 
 #ifndef XYO_GRAMMARCOMPILER_PARSER_HPP
 #	include <XYO/GrammarCompiler/Parser.hpp>
@@ -21,11 +21,9 @@ namespace XYO::GrammarCompiler::Application {
 			String headerFn;
 			String headerFnIntern;
 			String codeFn;
-			bool noCode;
 
 			inline CodeInfo() {
 				codeId = 0;
-				noCode = false;
 			};
 
 			inline void activeConstructor() {
@@ -33,17 +31,15 @@ namespace XYO::GrammarCompiler::Application {
 			};
 	};
 
-	class Processor {
+	class Generator {
 		public:
 			Token *tokenList;
-
 			String code;
-
 			TAssociativeArray<String, TPointer<CodeInfo>> codeInfo;
 
 		public:
-			Processor();
-			~Processor();
+			Generator();
+			~Generator();
 
 			String toString(int x);
 
@@ -51,28 +47,12 @@ namespace XYO::GrammarCompiler::Application {
 			void setFunctionHeader(const String &symbol, const String &functionHeader);
 			void setFunctionHeaderIntern(const String &symbol, const String &functionHeader);
 			void setFunctionCode(const String &symbol, const String &functionCode);
-			void setFunctionNoCode(const String &symbol);
-
-			static bool findByTypeNext(Token *this_, Token::Type type, Token *&token);
-			static bool findByTypeNext2(Token *this_, Token::Type type1, Token::Type type2, Token *&token);
-
-			static int expressionOperatorPrecedenceGetLevel(Token *token);
-			static bool expressionOperatorPrecedenceScan(Token *termBegin, int level, Token *&termEnd, int &nextLevel);
-			static void expressionOperatorPrecedenceSubstitute(Token *termBegin, Token *termEnd, Token *&newTerm);
-			static void expressionOperatorPrecedenceLevel(Token *token, int lastLevel, int level);
-			static void expressionOperatorPrecedenceSubType(Token *&token);
-			static void expressionOperatorPrecedence(Token *&token);
 
 			bool getValue(Token *symbol, Token *token);
 			bool getTermValue(Token *symbol, Token *token);
 			bool expression(Token *symbol, Token *token);
-			void removeNoise();
-			void transform(Token *token);
-			void orderOperations();
-			void statementOperations();
-			void statementExpressionPrecedence();
 
-			size_t getLineCount();
+			String getSymbol(const String &symbol);
 
 			bool prepareCode();
 			bool saveCode(const String &sourceNamespace,

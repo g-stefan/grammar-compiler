@@ -16,5 +16,7 @@
 
 #include <XYO/GrammarCompiler.Application/Application.cpp>
 #include <XYO/GrammarCompiler.Application/Code/Code.Amalgam.cpp>
-#include <XYO/GrammarCompiler.Application/Processor.cpp>
+#include <XYO/GrammarCompiler.Application/TokenTypeExtra.cpp>
+#include <XYO/GrammarCompiler.Application/Transformer.cpp>
+#include <XYO/GrammarCompiler.Application/Generator.cpp>
 #include <XYO/GrammarCompiler.Application/Debug.cpp>

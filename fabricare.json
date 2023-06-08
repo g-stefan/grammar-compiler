@@ -41,7 +41,6 @@
 					"grammar-compiler"
 				]
 			}
-		],
-		"hasGithub" : true
+		]
 	}
 }

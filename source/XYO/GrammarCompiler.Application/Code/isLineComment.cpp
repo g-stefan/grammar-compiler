@@ -23,11 +23,15 @@ namespace XYO::GrammarCompiler::Application::Code {
 		if (parser.inputIsToken("//", TokenType::LineComment, token) ||
 		    parser.inputIsToken("#", TokenType::LineComment, token)) {
 
-			while (!isNewLine(parser, token, level)) {
+			Token *node = TokenList::newNode();
+			node->type = TokenType::LineCommentContent;
+			TokenList::pushToTail(token, node);
+
+			while (!isNewLine(parser, node, level)) {
 				if (parser.input.isEof()) {
 					return true;
 				};
-				token->value += parser.input;
+				node->value += parser.input;
 				parser.input.read();
 			};
 

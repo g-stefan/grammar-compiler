@@ -15,11 +15,9 @@ namespace XYO::GrammarCompiler::Application::Code {
 		};
 
 		if (isLineComment(parser, node, level) || isMultilineComment(parser, node, level)) {
-
 			while (isLineComment(parser, node, level) || isMultilineComment(parser, node, level)) {
-				TokenList::pushToTail(token, node);
+				//
 			};
-
 			TokenList::pushToTail(token, node);
 			return true;
 		};

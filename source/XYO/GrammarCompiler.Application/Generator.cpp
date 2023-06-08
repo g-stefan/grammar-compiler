@@ -4,8 +4,9 @@
 // SPDX-FileCopyrightText: 2022-2023 Grigore Stefan <g_stefan@yahoo.com>
 // SPDX-License-Identifier: MIT
 
-#include <XYO/GrammarCompiler.Application/Processor.hpp>
+#include <XYO/GrammarCompiler.Application/Generator.hpp>
 #include <XYO/GrammarCompiler.Application/Code/Code.hpp>
+#include <XYO/GrammarCompiler.Application/TokenTypeExtra.hpp>
 #include <XYO/GrammarCompiler.Application/Debug.hpp>
 #include <XYO/System.hpp>
 
@@ -13,351 +14,26 @@ namespace XYO::GrammarCompiler::Application {
 
 	using namespace XYO::GrammarCompiler::Application::Code;
 
-	Processor::Processor() {
+	Generator::Generator() {
 		tokenList = nullptr;
 	};
 
-	Processor::~Processor(){};
+	Generator::~Generator(){};
 
-	bool Processor::findByTypeNext(Token *this_, Token::Type type, Token *&token) {
-		for (token = this_; token != nullptr; token = token->next) {
-			if (token->type == type) {
-				return true;
-			};
-		};
-		return false;
-	};
-
-	bool Processor::findByTypeNext2(Token *this_, Token::Type type1, Token::Type type2, Token *&token) {
-		for (token = this_; token != nullptr; token = token->next) {
-			if (token->type == type1 || token->type == type2) {
-				return true;
-			};
-		};
-		return false;
-	};
-
-	struct ExpressionOperatorPrecedence {
-			int level;
-			Token::Type subType;
-	};
-
-	ExpressionOperatorPrecedence expressionOperatorPrecedenceTable[] = {
-	    {0, TokenType::Alternation},
-	    {1, TokenType::Concatenation}};
-
-	int Processor::expressionOperatorPrecedenceGetLevel(Token *token) {
-		int index;
-		int expressionOperatorPrecedenceLn = sizeof(expressionOperatorPrecedenceTable) / sizeof(ExpressionOperatorPrecedence);
-		for (index = 0; index < expressionOperatorPrecedenceLn; ++index) {
-			if (expressionOperatorPrecedenceTable[index].subType == token->subType) {
-				return expressionOperatorPrecedenceTable[index].level;
-			};
-		};
-		return -1;
-	};
-
-	bool Processor::expressionOperatorPrecedenceScan(Token *termBegin, int level, Token *&termEnd, int &nextLevel) {
-		Token *eTerm = nullptr;
-		Token *eOperator = nullptr;
-		Token *index = termBegin;
-		bool found = false;
-		while (findByTypeNext2(index, TokenType::ExpressionTerm, TokenType::ExpressionPrecedence, eTerm)) {
-			if (findByTypeNext(eTerm, TokenType::ExpressionOperator, eOperator)) {
-				nextLevel = expressionOperatorPrecedenceGetLevel(eOperator);
-				if (nextLevel == level) {
-					found = true;
-					index = eOperator->next;
-					continue;
-				};
-			};
-			break;
-		};
-		termEnd = eTerm;
-		return found;
-	};
-
-	void Processor::expressionOperatorPrecedenceSubstitute(Token *termBegin, Token *termEnd, Token *&newTerm) {
-		Token *scan;
-
-		Token *parent = termBegin->parent;
-		Token *anchor = termBegin->back;
-		TokenList::extractList(parent, termBegin, termEnd);
-
-		newTerm = TokenList::newNode();
-		newTerm->type = TokenType::ExpressionPrecedence;
-		TokenList::addListToTail(newTerm, termBegin, termEnd);
-		TokenList::insertNode(parent, anchor, newTerm);
-	};
-
-	void Processor::expressionOperatorPrecedenceLevel(Token *token, int lastLevel, int level) {
-		Token *termBegin = token;
-		Token *termEnd = token;
-		int nextLevel;
-
-		if (expressionOperatorPrecedenceScan(termBegin, level, termEnd, nextLevel)) {
-			Token *newTerm = termEnd;
-			if (lastLevel < level || nextLevel < level) {
-				expressionOperatorPrecedenceSubstitute(termBegin, termEnd, newTerm);
-			};
-			expressionOperatorPrecedenceLevel(newTerm, level, nextLevel);
-		} else {
-			if (lastLevel > level) {
-				Token *eTerm;
-				Token *eOperator;
-				if (findByTypeNext(token, TokenType::ExpressionOperator, eOperator)) {
-					if (findByTypeNext2(eOperator, TokenType::ExpressionTerm, TokenType::ExpressionPrecedence, eTerm)) {
-						if (findByTypeNext(eTerm, TokenType::ExpressionOperator, eOperator)) {
-							nextLevel = expressionOperatorPrecedenceGetLevel(eOperator);
-							expressionOperatorPrecedenceLevel(eTerm, level, nextLevel);
-						};
-					};
-				};
-			};
-		};
-	};
-
-	void Processor::expressionOperatorPrecedenceSubType(Token *&token) {
-		Token *node;
-		for (node = TokenList::begin(token); node != nullptr; node = TokenList::successor(node)) {
-			int index;
-			int expressionOperatorPrecedenceLn = sizeof(expressionOperatorPrecedenceTable) / sizeof(ExpressionOperatorPrecedence);
-			for (index = 0; index < expressionOperatorPrecedenceLn; ++index) {
-				if (expressionOperatorPrecedenceTable[index].subType == token->type) {
-					token->subType = token->type;
-					token->type = TokenType::ExpressionOperator;
-					break;
-				};
-			};
-		};
-	};
-
-	void Processor::expressionOperatorPrecedence(Token *&token) {
-		expressionOperatorPrecedenceSubType(token);
-
-		Token *eOperator;
-		if (findByTypeNext(token->childHead, TokenType::ExpressionOperator, eOperator)) {
-			int level = expressionOperatorPrecedenceGetLevel(eOperator);
-			expressionOperatorPrecedenceLevel(token->childHead, level, level);
-		};
-	};
-
-	String Processor::toString(int x) {
+	String Generator::toString(int x) {
 		char buffer[24];
 		sprintf(buffer, "%d", x);
 		return buffer;
 	};
 
-	void Processor::removeNoise() {
-		Token *scan;
-		Token *node;
-
-		for (scan = TokenList::begin(tokenList); scan != nullptr;) {
-			node = scan;
-			if ((node->type == TokenType::WhiteSpace) || (node->type == TokenType::Comment) || (node->type == TokenType::BOM) || (node->type == TokenType::WhiteSpaceOrComment) || (node->type == TokenType::WS) || (node->type == TokenType::StatementEnd) || (node->type == TokenType::GroupBegin) || (node->type == TokenType::GroupEnd) || (node->type == TokenType::IntervalBegin) || (node->type == TokenType::IntervalSeparator) || (node->type == TokenType::IntervalEnd) || (node->type == TokenType::CountIntervalBegin) || (node->type == TokenType::CountIntervalSeparator) || (node->type == TokenType::CountIntervalEnd)) {
-				scan = TokenList::successorNoChild(scan);
-				TokenList::extract(node->parent, node);
-				TokenList::destructor(node);
-				continue;
-			};
-			scan = TokenList::successor(scan);
+	String Generator::getSymbol(const String &symbol) {
+		if (symbol[0] == '@') {
+			return symbol.index(1);
 		};
+		return symbol;
 	};
 
-	void Processor::transform(Token *token) {
-		Token *scan;
-		Token *node;
-		Token *parent;
-
-		for (scan = token; scan != nullptr;) {
-			if (scan->type == TokenType::ExpressionTermExtended) {
-				if (scan->childHead) {
-					if (scan->childTail == scan->childHead) {
-						if (scan->childHead->type == TokenType::ExpressionTerm) {
-							node = scan;
-
-							parent = node->parent;
-							node->parent = nullptr;
-							node->type = TokenType::Unknown;
-							transform(node->childHead);
-							node->parent = parent;
-
-							scan = TokenList::successorNoChild(scan);
-
-							TokenList::transferChildAnchor(node->parent, node);
-							TokenList::extract(node->parent, node);
-							TokenList::destructor(node);
-							continue;
-						};
-					};
-				};
-				scan->type = TokenType::ExpressionTerm;
-				scan = TokenList::successor(scan);
-				continue;
-			};
-			if (scan->type == TokenType::Alternation) {
-				scan->type = TokenType::ExpressionOperator;
-				scan->subType = TokenType::Alternation;
-				scan = TokenList::successor(scan);
-				continue;
-			};
-			if (scan->type == TokenType::Concatenation) {
-				scan->type = TokenType::ExpressionOperator;
-				scan->subType = TokenType::Concatenation;
-				scan = TokenList::successor(scan);
-				continue;
-			};
-			scan = TokenList::successor(scan);
-		};
-	};
-
-	void Processor::orderOperations() {
-		Token *scan;
-		Token *node;
-		Token *term;
-		for (scan = TokenList::begin(tokenList); scan != nullptr;) {
-			node = scan;
-
-			if ((node->type == TokenType::ZeroOrOne) || (node->type == TokenType::ZeroOrMore) || (node->type == TokenType::OneOrMore) || (node->type == TokenType::CountInterval)) {
-				scan = TokenList::successorNoChild(scan);
-
-				if (node->back) {
-					term = node->back;
-					TokenList::extract(node->parent, node);
-					TokenList::insertNode(term->parent, term->back, node);
-					TokenList::extract(term->parent, term);
-					TokenList::push(node, term);
-				};
-
-				continue;
-			};
-
-			scan = TokenList::successor(scan);
-		};
-	};
-
-	void Processor::statementOperations() {
-		Token *scan;
-		Token *node;
-		Token *term;
-
-		node = TokenList::begin(tokenList);
-		if (node == nullptr) {
-			return;
-		};
-
-		for (scan = node->childHead; scan != nullptr;) {
-			node = scan;
-			scan = scan->next;
-
-			if (node->type == TokenType::Statement) {
-				Token *Alternation;
-				Token *Concatenation;
-				Token *statementSymbol;
-				Token *statementNext;
-				Token *statementAssign;
-
-				Alternation = nullptr;
-				Concatenation = nullptr;
-				statementNext = nullptr;
-				statementAssign = nullptr;
-				statementSymbol = nullptr;
-
-				if (findByTypeNext(node->childHead, TokenType::Symbol, statementSymbol)) {
-
-					findByTypeNext(statementSymbol->next, TokenType::Alternation, Alternation);
-					findByTypeNext(statementSymbol->next, TokenType::Concatenation, Concatenation);
-					if (Alternation || Concatenation) {
-
-						if (Alternation) {
-							statementNext = Alternation;
-						};
-						if (Concatenation) {
-							statementNext = Concatenation;
-						};
-
-						if (findByTypeNext(statementNext->next, TokenType::Assign, statementAssign)) {
-
-							//  find first statement node
-							Token *index;
-							Token *symbol;
-							for (index = TokenList::begin(tokenList)->childHead; index != nullptr; index = index->next) {
-								if (index->type == TokenType::Statement) {
-									if (findByTypeNext(index->childHead, TokenType::Symbol, symbol)) {
-										if (symbol->value == statementSymbol->value) {
-											break;
-										};
-									};
-								};
-							};
-
-							if (index) {
-
-								findByTypeNext(index->childHead, TokenType::Assign, index);
-								index = index->next; // Assign / Expression / ...
-
-								Token *listBeginNode;
-								Token *listEndNode;
-								listBeginNode = statementAssign->next;
-								listEndNode = node->childTail;
-								TokenList::extractList(node, listBeginNode, listEndNode);
-								Token *listBegin = listBeginNode->childHead;
-								Token *listEnd = listBeginNode->childTail;
-								TokenList::extractList(listBeginNode, listBegin, listEnd);
-								TokenList::destructor(listBeginNode);
-
-								Token *iNode;
-
-								iNode = TokenList::newNode();
-								if (Alternation) {
-									iNode->type = TokenType::ExpressionOperator;
-									iNode->subType = TokenType::Alternation;
-									iNode->value = "|";
-								};
-								if (Concatenation) {
-									iNode->type = TokenType::ExpressionOperator;
-									iNode->subType = TokenType::Concatenation;
-									iNode->value = "&";
-								};
-								TokenList::pushToTail(index, iNode);
-
-								TokenList::addListToTail(index, listBegin, listEnd);
-
-								TokenList::extract(node->parent, node);
-								TokenList::destructor(node);
-
-								continue;
-							};
-						};
-					};
-				};
-			};
-		};
-	};
-
-	void Processor::statementExpressionPrecedence() {
-		Token *scan;
-		Token *node;
-		Token *term;
-
-		node = TokenList::begin(tokenList);
-		if (node == nullptr) {
-			return;
-		};
-
-		for (scan = node->childHead; scan != nullptr;) {
-			node = scan;
-			scan = scan->next;
-			if (node->type == TokenType::Statement) {
-				Token *statementExpression = nullptr;
-				if (findByTypeNext(node->childHead, TokenType::Expression, statementExpression)) {
-					expressionOperatorPrecedence(statementExpression);
-				};
-			};
-		};
-	};
-
-	String Processor::incFunctionCodeId(const String &symbol) {
+	String Generator::incFunctionCodeId(const String &symbol) {
 		TPointer<CodeInfo> info;
 		codeInfo.get(symbol, info);
 		if (!info) {
@@ -371,7 +47,7 @@ namespace XYO::GrammarCompiler::Application {
 		return toString(info->codeId);
 	};
 
-	void Processor::setFunctionHeader(const String &symbol, const String &functionHeader) {
+	void Generator::setFunctionHeader(const String &symbol, const String &functionHeader) {
 		TPointer<CodeInfo> info;
 		codeInfo.get(symbol, info);
 		if (!info) {
@@ -383,7 +59,7 @@ namespace XYO::GrammarCompiler::Application {
 		codeInfo.set(symbol, info);
 	};
 
-	void Processor::setFunctionHeaderIntern(const String &symbol, const String &functionHeader) {
+	void Generator::setFunctionHeaderIntern(const String &symbol, const String &functionHeader) {
 		TPointer<CodeInfo> info;
 		codeInfo.get(symbol, info);
 		if (!info) {
@@ -395,7 +71,7 @@ namespace XYO::GrammarCompiler::Application {
 		codeInfo.set(symbol, info);
 	};
 
-	void Processor::setFunctionCode(const String &symbol, const String &functionCode) {
+	void Generator::setFunctionCode(const String &symbol, const String &functionCode) {
 		TPointer<CodeInfo> info;
 		codeInfo.get(symbol, info);
 		if (!info) {
@@ -407,19 +83,7 @@ namespace XYO::GrammarCompiler::Application {
 		codeInfo.set(symbol, info);
 	};
 
-	void Processor::setFunctionNoCode(const String &symbol) {
-		TPointer<CodeInfo> info;
-		codeInfo.get(symbol, info);
-		if (!info) {
-			info.newMemory();
-		};
-
-		info->noCode = true;
-
-		codeInfo.set(symbol, info);
-	};
-
-	bool Processor::getValue(Token *symbol, Token *token) {
+	bool Generator::getValue(Token *symbol, Token *token) {
 		if (token == nullptr) {
 			return false;
 		};
@@ -432,23 +96,23 @@ namespace XYO::GrammarCompiler::Application {
 
 			code += "parser.inputIsToken(";
 			code += token->value;
-			code += ",TokenType::";
-			code += symbol->value;
-			code += ",node)";
+			code += ", TokenType::";
+			code += getSymbol(symbol->value);
+			code += ", node)";
 
 			return true;
 		};
 		if (token->type == TokenType::Symbol) {
 			code += "is";
-			code += token->value;
-			code += "(parser,node,level)";
+			code += getSymbol(token->value);
+			code += "(parser, node, level)";
 			return true;
 		};
 		if (token->type == TokenType::Any) {
 			code += "parser.inputIsTokenAny(";
 			code += "TokenType::";
-			code += symbol->value;
-			code += ",node)";
+			code += getSymbol(symbol->value);
+			code += ", node)";
 			return true;
 		};
 		if (token->type == TokenType::ExpressionTerm) {
@@ -467,7 +131,7 @@ namespace XYO::GrammarCompiler::Application {
 			String functionCode;
 
 			functionName = "is";
-			functionName += symbol->value;
+			functionName += getSymbol(symbol->value);
 			functionName += "Parentheses";
 			functionName += functionId;
 
@@ -476,7 +140,7 @@ namespace XYO::GrammarCompiler::Application {
 			functionHeader += "(Parser &parser, Token *token, int level)";
 
 			functionCode = functionHeader;
-			functionCode += "{\r\n";
+			functionCode += " {\r\n";
 
 			functionHeader += ";\r\n";
 
@@ -490,14 +154,14 @@ namespace XYO::GrammarCompiler::Application {
 			functionCode += "\t\tToken *node  = TokenList::newNode();\r\n";
 			functionCode += "\t\tnode->type = ";
 			functionCode += "TokenType::";
-			functionCode += symbol->value;
+			functionCode += getSymbol(symbol->value);
 			functionCode += ";\r\n";
 			functionCode += "\r\n";
 
 			functionCode += "\t\tif(";
 			functionCode += code;
-			functionCode += "){\r\n";
-			functionCode += "\t\t\tTokenList::transferChild(token,node);\r\n";
+			functionCode += ") {\r\n";
+			functionCode += "\t\t\tTokenList::transferChild(token, node);\r\n";
 			functionCode += "\t\t\tTokenList::destructor(node);\r\n";
 			functionCode += "\t\t\treturn true;\r\n";
 			functionCode += "\t\t};\r\n";
@@ -510,7 +174,7 @@ namespace XYO::GrammarCompiler::Application {
 
 			code = saveCode;
 			code += functionName;
-			code += "(parser,node,level)";
+			code += "(parser, node, level)";
 
 			setFunctionHeaderIntern(symbol->value, functionHeader);
 			setFunctionCode(symbol->value, functionCode);
@@ -543,9 +207,9 @@ namespace XYO::GrammarCompiler::Application {
 			code += str1->value;
 			code += ",";
 			code += str2->value;
-			code += ",TokenType::";
-			code += symbol->value;
-			code += ",node)";
+			code += ", TokenType::";
+			code += getSymbol(symbol->value);
+			code += ", node)";
 
 			return true;
 		};
@@ -567,7 +231,7 @@ namespace XYO::GrammarCompiler::Application {
 			functionHeader += "(Parser &parser, Token *token, int level)";
 
 			functionCode = functionHeader;
-			functionCode += "{\r\n";
+			functionCode += " {\r\n";
 
 			functionHeader += ";\r\n";
 
@@ -582,7 +246,7 @@ namespace XYO::GrammarCompiler::Application {
 			functionCode += "\r\n";
 			functionCode += "\t\tif(";
 			functionCode += code;
-			functionCode += "){\r\n";
+			functionCode += ") {\r\n";
 			functionCode += "\t\t\tparser.inputRestore(node);\r\n";
 			functionCode += "\t\t\tTokenList::destructor(node);\r\n";
 			functionCode += "\t\t\treturn false;\r\n";
@@ -596,7 +260,7 @@ namespace XYO::GrammarCompiler::Application {
 
 			code = saveCode;
 			code += functionName;
-			code += "(parser,node,level)";
+			code += "(parser, node, level)";
 
 			setFunctionHeaderIntern(symbol->value, functionHeader);
 			setFunctionCode(symbol->value, functionCode);
@@ -611,7 +275,7 @@ namespace XYO::GrammarCompiler::Application {
 			String functionCode;
 
 			functionName = "is";
-			functionName += symbol->value;
+			functionName += getSymbol(symbol->value);
 			functionName += "ZeroOrOne";
 			functionName += functionId;
 
@@ -620,7 +284,7 @@ namespace XYO::GrammarCompiler::Application {
 			functionHeader += "(Parser &parser, Token *token, int level)";
 
 			functionCode = functionHeader;
-			functionCode += "{\r\n";
+			functionCode += " {\r\n";
 
 			functionHeader += ";\r\n";
 
@@ -640,7 +304,7 @@ namespace XYO::GrammarCompiler::Application {
 
 			functionCode += "\t\tif(";
 			functionCode += code;
-			functionCode += "){\r\n";
+			functionCode += ") {\r\n";
 			functionCode += "\t\t\treturn true;\r\n";
 			functionCode += "\t\t};\r\n";
 			functionCode += "\t\treturn true;\r\n";
@@ -649,7 +313,7 @@ namespace XYO::GrammarCompiler::Application {
 
 			code = saveCode;
 			code += functionName;
-			code += "(parser,node,level)";
+			code += "(parser, node, level)";
 
 			setFunctionHeaderIntern(symbol->value, functionHeader);
 			setFunctionCode(symbol->value, functionCode);
@@ -664,7 +328,7 @@ namespace XYO::GrammarCompiler::Application {
 			String functionCode;
 
 			functionName = "is";
-			functionName += symbol->value;
+			functionName += getSymbol(symbol->value);
 			functionName += "ZeroOrMore";
 			functionName += functionId;
 
@@ -673,7 +337,7 @@ namespace XYO::GrammarCompiler::Application {
 			functionHeader += "(Parser &parser, Token *token, int level)";
 
 			functionCode = functionHeader;
-			functionCode += "{\r\n";
+			functionCode += " {\r\n";
 
 			functionHeader += ";\r\n";
 
@@ -691,10 +355,10 @@ namespace XYO::GrammarCompiler::Application {
 			functionCode += "\t\tToken *node  = token;\r\n";
 			functionCode += "\r\n";
 
-			functionCode += "\t\twhile(!parser.input.isEof()){\r\n";
+			functionCode += "\t\twhile(!parser.input.isEof()) {\r\n";
 			functionCode += "\t\t\tif(";
 			functionCode += code;
-			functionCode += "){\r\n";
+			functionCode += ") {\r\n";
 			functionCode += "\t\t\t\tcontinue;\r\n";
 			functionCode += "\t\t\t};\r\n";
 			functionCode += "\t\t\tbreak;\r\n";
@@ -705,7 +369,7 @@ namespace XYO::GrammarCompiler::Application {
 
 			code = saveCode;
 			code += functionName;
-			code += "(parser,node,level)";
+			code += "(parser, node, level)";
 
 			setFunctionHeaderIntern(symbol->value, functionHeader);
 			setFunctionCode(symbol->value, functionCode);
@@ -720,7 +384,7 @@ namespace XYO::GrammarCompiler::Application {
 			String functionCode;
 
 			functionName = "is";
-			functionName += symbol->value;
+			functionName += getSymbol(symbol->value);
 			functionName += "OneOrMore";
 			functionName += functionId;
 
@@ -729,7 +393,7 @@ namespace XYO::GrammarCompiler::Application {
 			functionHeader += "(Parser &parser, Token *token, int level)";
 
 			functionCode = functionHeader;
-			functionCode += "{\r\n";
+			functionCode += " {\r\n";
 
 			functionHeader += ";\r\n";
 
@@ -746,26 +410,26 @@ namespace XYO::GrammarCompiler::Application {
 
 			functionCode += "\t\tToken *node  = TokenList::newNode();\r\n";
 			functionCode += "\t\tnode->type = TokenType::";
-			functionCode += symbol->value;
+			functionCode += getSymbol(symbol->value);
 			functionCode += ";\r\n";
 			functionCode += "\r\n";
 
 			functionCode += "\t\tif(!(";
 			functionCode += code;
-			functionCode += ")){\r\n";
+			functionCode += ")) {\r\n";
 			functionCode += "\t\t\tparser.inputRestore(node);\r\n";
 			functionCode += "\t\t\tTokenList::destructor(node);\r\n";
 			functionCode += "\t\t\treturn false;\r\n";
 			functionCode += "\t\t};\r\n";
-			functionCode += "\t\twhile(!parser.input.isEof()){\r\n";
+			functionCode += "\t\twhile(!parser.input.isEof()) {\r\n";
 			functionCode += "\t\t\tif(";
 			functionCode += code;
-			functionCode += "){\r\n";
+			functionCode += ") {\r\n";
 			functionCode += "\t\t\t\tcontinue;\r\n";
 			functionCode += "\t\t\t};\r\n";
 			functionCode += "\t\t\tbreak;\r\n";
 			functionCode += "\t\t};\r\n";
-			functionCode += "\t\tTokenList::transferChild(token,node);\r\n";
+			functionCode += "\t\tTokenList::transferChild(token, node);\r\n";
 			functionCode += "\t\tTokenList::destructor(node);\r\n";
 			functionCode += "\t\treturn true;\r\n";
 			functionCode += "\t};\r\n";
@@ -773,7 +437,7 @@ namespace XYO::GrammarCompiler::Application {
 
 			code = saveCode;
 			code += functionName;
-			code += "(parser,node,level)";
+			code += "(parser, node, level)";
 
 			setFunctionHeaderIntern(symbol->value, functionHeader);
 			setFunctionCode(symbol->value, functionCode);
@@ -796,7 +460,7 @@ namespace XYO::GrammarCompiler::Application {
 				String functionCode;
 
 				functionName = "is";
-				functionName += symbol->value;
+				functionName += getSymbol(symbol->value);
 				functionName += "RepeatM";
 				functionName += functionId;
 
@@ -805,7 +469,7 @@ namespace XYO::GrammarCompiler::Application {
 				functionHeader += "(Parser &parser, Token *token, int level)";
 
 				functionCode = functionHeader;
-				functionCode += "{\r\n";
+				functionCode += " {\r\n";
 
 				functionHeader += ";\r\n";
 
@@ -823,17 +487,17 @@ namespace XYO::GrammarCompiler::Application {
 
 				functionCode += "\t\tToken *node  = TokenList::newNode();\r\n";
 				functionCode += "\t\tnode->type = TokenType::";
-				functionCode += symbol->value;
+				functionCode += getSymbol(symbol->value);
 				functionCode += ";\r\n";
 				functionCode += "\r\n";
 
 				functionCode += "\t\tint m;";
-				functionCode += "\t\tfor(m=0;m<";
+				functionCode += "\t\tfor(m = 0; m < ";
 				functionCode += nr1->value;
-				functionCode += ";m++){\r\n";
+				functionCode += "; m++){\r\n";
 				functionCode += "\t\t\t\tif(";
 				functionCode += code;
-				functionCode += "){\r\n";
+				functionCode += ") {\r\n";
 				functionCode += "\t\t\t\t\tcontinue;\r\n";
 				functionCode += "\t\t\t\t};\r\n";
 				functionCode += "\t\t\tparser.inputRestore(node);\r\n";
@@ -841,16 +505,16 @@ namespace XYO::GrammarCompiler::Application {
 				functionCode += "\t\t\treturn false;\r\n";
 				functionCode += "\t\t\t};\r\n";
 
-				functionCode += "\t\twhile(!parser.input.isEof()){\r\n";
+				functionCode += "\t\twhile(!parser.input.isEof()) {\r\n";
 				functionCode += "\t\t\tif(";
 				functionCode += code;
-				functionCode += "){\r\n";
+				functionCode += ") {\r\n";
 				functionCode += "\t\t\t\tcontinue;\r\n";
 				functionCode += "\t\t\t};\r\n";
 				functionCode += "\t\t\tbreak;\r\n";
 				functionCode += "\t\t};\r\n";
 
-				functionCode += "\t\tTokenList::transferChild(token,node);\r\n";
+				functionCode += "\t\tTokenList::transferChild(token, node);\r\n";
 				functionCode += "\t\tTokenList::destructor(node);\r\n";
 				functionCode += "\t\treturn true;\r\n";
 				functionCode += "\t};\r\n";
@@ -872,7 +536,7 @@ namespace XYO::GrammarCompiler::Application {
 			String functionCode;
 
 			functionName = "is";
-			functionName += symbol->value;
+			functionName += getSymbol(symbol->value);
 			functionName += "RepeatMN";
 			functionName += functionId;
 
@@ -881,7 +545,7 @@ namespace XYO::GrammarCompiler::Application {
 			functionHeader += "(Parser &parser, Token *token, int level)";
 
 			functionCode = functionHeader;
-			functionCode += "{\r\n";
+			functionCode += " {\r\n";
 
 			functionHeader += ";\r\n";
 
@@ -899,23 +563,23 @@ namespace XYO::GrammarCompiler::Application {
 
 			functionCode += "\t\tToken *node  = TokenList::newNode();\r\n";
 			functionCode += "\t\tnode->type = TokenType::";
-			functionCode += symbol->value;
+			functionCode += getSymbol(symbol->value);
 			functionCode += ";\r\n";
 			functionCode += "\r\n";
 
 			functionCode += "\t\tint mn;";
-			functionCode += "\t\tfor(mn=0;mn<";
+			functionCode += "\t\tfor(mn = 0; mn < ";
 			functionCode += nr2->value;
-			functionCode += ";mn++){\r\n";
+			functionCode += "; mn++) {\r\n";
 			functionCode += "\t\t\t\tif(";
 			functionCode += code;
-			functionCode += "){\r\n";
+			functionCode += ") {\r\n";
 			functionCode += "\t\t\t\t\tcontinue;\r\n";
 			functionCode += "\t\t\t\t};\r\n";
-			functionCode += "\t\t\t\tif(mn>=";
+			functionCode += "\t\t\t\tif(mn >= ";
 			functionCode += nr1->value;
-			functionCode += "){";
-			functionCode += "\t\t\t\tTokenList::transferChild(token,node);\r\n";
+			functionCode += ") {";
+			functionCode += "\t\t\t\tTokenList::transferChild(token, node);\r\n";
 			functionCode += "\t\t\t\tTokenList::destructor(node);\r\n";
 			functionCode += "\t\t\t\treturn true;\r\n";
 			functionCode += "\t\t\t\t};\r\n";
@@ -924,7 +588,7 @@ namespace XYO::GrammarCompiler::Application {
 			functionCode += "\t\t\t\treturn false;\r\n";
 			functionCode += "\t\t\t};\r\n";
 
-			functionCode += "\t\tTokenList::transferChild(token,node);\r\n";
+			functionCode += "\t\tTokenList::transferChild(token, node);\r\n";
 			functionCode += "\t\tTokenList::destructor(node);\r\n";
 			functionCode += "\t\treturn true;\r\n";
 			functionCode += "\t};\r\n";
@@ -932,7 +596,7 @@ namespace XYO::GrammarCompiler::Application {
 
 			code = saveCode;
 			code += functionName;
-			code += "(parser,node,level)";
+			code += "(parser, node, level)";
 
 			setFunctionHeaderIntern(symbol->value, functionHeader);
 			setFunctionCode(symbol->value, functionCode);
@@ -943,7 +607,7 @@ namespace XYO::GrammarCompiler::Application {
 		return false;
 	};
 
-	bool Processor::getTermValue(Token *symbol, Token *token) {
+	bool Generator::getTermValue(Token *symbol, Token *token) {
 		if (token->type == TokenType::ExpressionTerm) {
 			if (token->childHead == nullptr) {
 				Debug::tokenPrintList(token);
@@ -961,7 +625,7 @@ namespace XYO::GrammarCompiler::Application {
 			String functionCode;
 
 			functionName = "is";
-			functionName += symbol->value;
+			functionName += getSymbol(symbol->value);
 			functionName += "Precedence";
 			functionName += functionId;
 
@@ -970,7 +634,7 @@ namespace XYO::GrammarCompiler::Application {
 			functionHeader += "(Parser &parser, Token *token, int level)";
 
 			functionCode = functionHeader;
-			functionCode += "{\r\n";
+			functionCode += " {\r\n";
 
 			functionHeader += ";\r\n";
 
@@ -981,14 +645,14 @@ namespace XYO::GrammarCompiler::Application {
 			functionCode += "\t\tToken *node  = TokenList::newNode();\r\n";
 			functionCode += "\t\tnode->type = ";
 			functionCode += "TokenType::";
-			functionCode += symbol->value;
+			functionCode += getSymbol(symbol->value);
 			functionCode += ";\r\n";
 			functionCode += "\r\n";
 
 			functionCode += "\t\tif(";
 			functionCode += code;
-			functionCode += "){\r\n";
-			functionCode += "\t\t\tTokenList::transferChild(token,node);\r\n";
+			functionCode += ") {\r\n";
+			functionCode += "\t\t\tTokenList::transferChild(token, node);\r\n";
 			functionCode += "\t\t\tTokenList::destructor(node);\r\n";
 			functionCode += "\t\t\treturn true;\r\n";
 			functionCode += "\t\t};\r\n";
@@ -1002,7 +666,7 @@ namespace XYO::GrammarCompiler::Application {
 
 			code = saveCode;
 			code += functionName;
-			code += "(parser,node,level)";
+			code += "(parser, node, level)";
 
 			setFunctionHeaderIntern(symbol->value, functionHeader);
 			setFunctionCode(symbol->value, functionCode);
@@ -1012,12 +676,12 @@ namespace XYO::GrammarCompiler::Application {
 		return false;
 	};
 
-	bool Processor::expression(Token *symbol, Token *token) {
+	bool Generator::expression(Token *symbol, Token *token) {
 
 		Token *index;
 		Token *op;
 
-		if (findByTypeNext2(token, TokenType::ExpressionTerm, TokenType::ExpressionPrecedence, index)) {
+		if (findByTypeNext(token, TokenType::ExpressionTerm, TokenType::ExpressionPrecedence, index)) {
 
 			if (!getTermValue(symbol, index)) {
 				return false;
@@ -1026,7 +690,7 @@ namespace XYO::GrammarCompiler::Application {
 			index = index->next;
 			for (; index != nullptr; index = index->next) {
 				if (findByTypeNext(index, TokenType::ExpressionOperator, op)) {
-					if (findByTypeNext2(index->next, TokenType::ExpressionTerm, TokenType::ExpressionPrecedence, index)) {
+					if (findByTypeNext(index->next, TokenType::ExpressionTerm, TokenType::ExpressionPrecedence, index)) {
 						if (op->subType == TokenType::Alternation) {
 							code += "||";
 							code += "\r\n\t\t\t";
@@ -1054,18 +718,7 @@ namespace XYO::GrammarCompiler::Application {
 		return false;
 	};
 
-	bool Processor::prepareCode() {
-
-		removeNoise();
-		transform(tokenList);
-		orderOperations();
-		statementOperations();
-		statementExpressionPrecedence();
-
-		return true;
-	};
-
-	bool Processor::saveCode(const String &sourceNamespace,
+	bool Generator::saveCode(const String &sourceNamespace,
 	                         const String &sourceIncludeGuard,
 	                         const String &sourceIncludePath,
 	                         const String &sourceHeaderFile,
@@ -1118,7 +771,7 @@ namespace XYO::GrammarCompiler::Application {
 					String functionCode;
 
 					functionName = "is";
-					functionName += symbol->value;
+					functionName += getSymbol(symbol->value);
 
 					functionHeader = "\tbool ";
 					functionHeader += functionName;
@@ -1133,7 +786,7 @@ namespace XYO::GrammarCompiler::Application {
 
 						functionCode += "\t\tToken *node;\r\n";
 						functionCode += "\t\tif(!parser.codeBegin(node, TokenType::";
-						functionCode += symbol->value;
+						functionCode += getSymbol(symbol->value);
 						functionCode += ", level)){\r\n";
 						functionCode += "\t\t\treturn false;\r\n";
 						functionCode += "\t\t};\r\n";
@@ -1142,20 +795,20 @@ namespace XYO::GrammarCompiler::Application {
 						functionCode += "\t\tif(";
 
 						code = "";
-						Processor::expression(symbol, expression->childHead);
+						Generator::expression(symbol, expression->childHead);
 						functionCode += code;
 
 						functionCode += "){\r\n";
 
-						functionCode += "\t\t\tparser.codeEndTrue(token,node);\r\n";
+						functionCode += "\t\t\tparser.codeEndTrue(token, node);\r\n";
 
 						functionCode += "\t\t\treturn true;\r\n";
 						functionCode += "\t\t};\r\n";
 
 						functionCode += "\r\n";
 
-						functionCode += "\t\tparser.codeEndFalse(node,TokenType::";
-						functionCode += symbol->value;
+						functionCode += "\t\tparser.codeEndFalse(node, TokenType::";
+						functionCode += getSymbol(symbol->value);
 						functionCode += ");\r\n";
 					};
 
@@ -1167,9 +820,6 @@ namespace XYO::GrammarCompiler::Application {
 				};
 			};
 		};
-
-		setFunctionNoCode("ExpressionOperator");
-		setFunctionNoCode("ExpressionPrecedence");
 
 		//
 		// Code.hpp
@@ -1219,36 +869,30 @@ namespace XYO::GrammarCompiler::Application {
 			if (!info) {
 				continue;
 			};
-			if (info->noCode) {
-				continue;
-			};
 
 			content = sourceHeaderFileContents;
 			content += "\r\n";
 
-			content << "#include <" << sourceIncludePathX << "Code.hpp>\r\n"
-			                                                 "\r\n"
-			                                                 "namespace "
-			        << sourceNamespace << " {\r\n"
-			                              "\t\r\n"
-			                              "\t\r\n"
-			                              "\t\r\n"
-			                              "\tusing namespace XYO::GrammarCompiler;\r\n"
-			                              "\r\n";
+			content << "#include <" << sourceIncludePathX << "Code.hpp>\r\n";
+			content << "\r\n";
+			content << "namespace " << sourceNamespace << " {\r\n";
+			content << "\tusing namespace XYO::GrammarCompiler;\r\n";
+			content << "\r\n";
 
-			content += info->headerFnIntern;
-			content += "\r\n";
+			if (info->headerFnIntern.length()) {
+				content += info->headerFnIntern;
+				content += "\r\n";
+			};
 
 			content += info->codeFn;
 
-			content += "\r\n"
-			           "};\r\n"
+			content += "};\r\n"
 			           "\r\n";
 
 			String fileName;
 
 			fileName = outputFolderX + "is";
-			fileName += symbol;
+			fileName += getSymbol(symbol);
 			fileName += ".cpp";
 
 			if (!System::Shell::filePutContents(fileName, content)) {
@@ -1269,11 +913,8 @@ namespace XYO::GrammarCompiler::Application {
 			if (!info) {
 				continue;
 			};
-			if (info->noCode) {
-				continue;
-			};
 
-			content << "#include <" << sourceIncludePathX << "is" << symbol << ".cpp>\r\n";
+			content << "#include <" << sourceIncludePathX << "is" << getSymbol(symbol) << ".cpp>\r\n";
 		};
 
 		content << "#include <" << sourceIncludePathX << "ParserTable.cpp>\r\n";
@@ -1303,7 +944,7 @@ namespace XYO::GrammarCompiler::Application {
 		content += "\r\n";
 		content += "\tconst char *getTokenTypeString(Token::Type type){\r\n";
 		content += "\t\tswitch (type) {\r\n";
-		content += "\t\tTOKENTYPE_STR(Unknown);\r\n";
+		content += "\t\t\tTOKENTYPE_STR(Unknown);\r\n";
 
 		for (i = 0; i < codeInfo.length(); ++i) {
 			symbol = (*codeInfo.arrayKey)[i];
@@ -1311,8 +952,9 @@ namespace XYO::GrammarCompiler::Application {
 			if (!info) {
 				continue;
 			};
-			content += "\t\tTOKENTYPE_STR(";
-			content += symbol;
+
+			content += "\t\t\tTOKENTYPE_STR(";
+			content += getSymbol(symbol);
 			content += ");\r\n";
 		};
 
@@ -1347,8 +989,9 @@ namespace XYO::GrammarCompiler::Application {
 		content << "namespace " << sourceNamespace << " {\r\n";
 		content += "\tusing namespace XYO::GrammarCompiler;\r\n";
 		content += "\r\n";
-		content += "\tstruct TokenType {\r\n";
-		content += "\t\t\tstatic const Token::Type Unknown = 0;\r\n";
+		content += "\tnamespace TokenType {\r\n";
+		content += "\t\tenum : Token::Type {\r\n";
+		content += "\t\t\tUnknown = 0";
 
 		for (i = 0; i < codeInfo.length(); ++i) {
 			symbol = (*codeInfo.arrayKey)[i];
@@ -1356,13 +999,13 @@ namespace XYO::GrammarCompiler::Application {
 			if (!info) {
 				continue;
 			};
-			content += "\t\t\tstatic const Token::Type ";
-			content += symbol;
-			content += " = ";
-			content += toString(i + 1);
-			content += ";\r\n";
+			content += ",\r\n";
+			content += "\t\t\t";
+			content += getSymbol(symbol);
 		};
 
+		content += "\r\n";
+		content += "\t\t};\r\n";
 		content += "\t};\r\n";
 		content += "\r\n";
 		content += "\tconst char *getTokenTypeString(Token::Type type);\r\n";
@@ -1390,9 +1033,6 @@ namespace XYO::GrammarCompiler::Application {
 		content += "#endif\r\n";
 		content += "\r\n";
 		content << "namespace " << sourceNamespace << " {\r\n";
-		content += "\t\r\n";
-		content += "\t\r\n";
-		content += "\t\r\n";
 		content += "\tusing namespace XYO::GrammarCompiler;\r\n";
 		content += "\r\n";
 		content += "\textern ParserProcessToken parserTable[];\r\n";
@@ -1418,7 +1058,7 @@ namespace XYO::GrammarCompiler::Application {
 		content << "namespace " << sourceNamespace << " {\r\n";
 		content += "\tusing namespace XYO::GrammarCompiler;\r\n";
 		content += "\r\n";
-		content += "ParserProcessToken parserTable[]={\r\n";
+		content += "\tParserProcessToken parserTable[] = {\r\n";
 
 		int codeLn = codeInfo.length();
 		for (i = 0; i < codeLn; ++i) {
@@ -1427,17 +1067,18 @@ namespace XYO::GrammarCompiler::Application {
 			if (!info) {
 				continue;
 			};
-			if (info->noCode) {
+
+			if (symbol[0] != '@') {
 				continue;
 			};
 
-			content += "\tis";
-			content += symbol;
+			content += "\t\tis";
+			content += getSymbol(symbol);
 			content += ",\r\n";
 		};
 
-		content += "// End\r\n";
-		content += "\tnullptr\r\n";
+		content += "\t\t// End\r\n";
+		content += "\t\tnullptr";
 		content += "};\r\n";
 		content += "\r\n";
 		content += "};\r\n";
@@ -1450,14 +1091,4 @@ namespace XYO::GrammarCompiler::Application {
 		return true;
 	};
 
-	size_t Processor::getLineCount() {
-		size_t count = 1;
-		Token *scan;
-		for (scan = TokenList::begin(tokenList); scan != nullptr; scan = TokenList::successor(scan)) {
-			if (scan->type == TokenType::NewLine) {
-				++count;
-			};
-		};
-		return count;
-	};
 };

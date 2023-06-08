@@ -25,3 +25,4 @@ exitIf(Shell.system("fabricare --config=test/Test.Generate.fabricare.json"));
 runInPath("output/test", function() {
 	exitIf(Shell.system("grammar-compiler.test @../../test/Test.Generate.Check.arguments"));
 });
+

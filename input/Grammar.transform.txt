@@ -9,3 +9,5 @@ Theorem/Grammar Transform
 2. E = A & B | A & C; => E =  A & ( B | C );
 3. E = E & A | B; => E = B & A*;
 4. ((A)+)? => A*
+5. E = A | A & B; => E = A & B?;
+

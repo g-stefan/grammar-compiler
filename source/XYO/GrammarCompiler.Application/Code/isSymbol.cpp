@@ -20,7 +20,7 @@ namespace XYO::GrammarCompiler::Application::Code {
 
 		// ---
 
-		if (parser.input == '_' || ((parser.input >= 'A') && (parser.input <= 'Z')) || ((parser.input >= 'a') && (parser.input <= 'z'))) {
+		if (parser.input == '@' || parser.input == '_' || ((parser.input >= 'A') && (parser.input <= 'Z')) || ((parser.input >= 'a') && (parser.input <= 'z'))) {
 			Token *node = TokenList::newNode();
 			node->type = TokenType::Symbol;
 			node->value += parser.input;

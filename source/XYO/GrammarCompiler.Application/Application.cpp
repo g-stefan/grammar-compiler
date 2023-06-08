@@ -5,7 +5,8 @@
 // SPDX-License-Identifier: MIT
 
 #include <XYO/GrammarCompiler.Application/Application.hpp>
-#include <XYO/GrammarCompiler.Application/Processor.hpp>
+#include <XYO/GrammarCompiler.Application/Transformer.hpp>
+#include <XYO/GrammarCompiler.Application/Generator.hpp>
 #include <XYO/GrammarCompiler.Application/Code/ParserTable.hpp>
 #include <XYO/GrammarCompiler.Application/Debug.hpp>
 
@@ -144,22 +145,17 @@ namespace XYO::GrammarCompiler::Application {
 		// ---
 
 		Parser parser;
-		Processor processor;
+		Generator generator;
 
 		if (!parser.parseFile(grammarFile, Code::parserTable)) {
-			processor.tokenList = parser.tokenList;
-			printf("Error: Syntax error line: %zd!\r\n", processor.getLineCount());
+			printf("Error: Syntax error line: %zd!\r\n", Transformer::getLineCount(parser.tokenList));
 			return 1;
 		};
 
-		processor.tokenList = parser.tokenList;
+		generator.tokenList = parser.tokenList;
+		Transformer::process(generator.tokenList);
 
-		if (!processor.prepareCode()) {
-			printf("Error: Preparing code!\r\n");
-			return 1;
-		};
-
-		if (!processor.saveCode(sourceNamespace,
+		if (!generator.saveCode(sourceNamespace,
 		                        sourceIncludeGuard,
 		                        sourceIncludePath,
 		                        sourceHeaderFile,

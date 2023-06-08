@@ -23,6 +23,7 @@ namespace XYO::GrammarCompiler::Application::Code {
 			TOKENTYPE_STR(WhiteSpaceContent);
 			TOKENTYPE_STR(WhiteSpace);
 			TOKENTYPE_STR(LineComment);
+			TOKENTYPE_STR(LineCommentContent);
 			TOKENTYPE_STR(MultilineCommentContent);
 			TOKENTYPE_STR(MultilineComment);
 			TOKENTYPE_STR(WhiteSpaceOrComment);
@@ -44,8 +45,6 @@ namespace XYO::GrammarCompiler::Application::Code {
 			TOKENTYPE_STR(CountInterval);
 			TOKENTYPE_STR(ExpressionTerm);
 			TOKENTYPE_STR(ExpressionTermExtended);
-			TOKENTYPE_STR(ExpressionOperator);
-			TOKENTYPE_STR(ExpressionPrecedence);
 			TOKENTYPE_STR(ExpressionEnd);
 			TOKENTYPE_STR(Alternation);
 			TOKENTYPE_STR(Concatenation);
@@ -57,7 +56,6 @@ namespace XYO::GrammarCompiler::Application::Code {
 			TOKENTYPE_STR(Assign);
 			TOKENTYPE_STR(Statement);
 			TOKENTYPE_STR(StatementEnd);
-			// ---
 			TOKENTYPE_STR(WS);
 		default:
 			break;

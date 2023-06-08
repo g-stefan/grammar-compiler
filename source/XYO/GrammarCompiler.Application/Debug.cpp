@@ -6,6 +6,7 @@
 
 #include <XYO/GrammarCompiler.Application/Debug.hpp>
 #include <XYO/GrammarCompiler.Application/Code/TokenType.hpp>
+#include <XYO/GrammarCompiler.Application/TokenTypeExtra.hpp>
 
 namespace XYO::GrammarCompiler::Application::Debug {
 
@@ -28,7 +29,7 @@ namespace XYO::GrammarCompiler::Application::Debug {
 	};
 
 	void tokenPrintType(Token *token) {
-		const char *tokenName = Code::getTokenTypeString(token->type);
+		const char *tokenName = Code::getTokenTypeExtraString(token->type);
 		printf("%s", tokenName);
 	};
 
