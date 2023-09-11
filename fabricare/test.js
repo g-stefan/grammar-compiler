@@ -20,7 +20,7 @@ runInPath("output/test", function() {
 
 // Rebuild grammar compiler with generated code and run
 
-exitIf(Shell.system("fabricare --config=test/Test.Generate.fabricare.json"));
+exitIf(Shell.system("fabricare --workspace=test/Test.Generate.fabricare.json"));
 
 runInPath("output/test", function() {
 	exitIf(Shell.system("grammar-compiler.test @../../test/Test.Generate.Check.arguments"));

@@ -23,6 +23,7 @@ namespace XYO::GrammarCompiler::Application {
 
 		printf("%s",
 		       "options:\n"
+		       "    --help                         this info\n"
 		       "    --usage                        this info\n"
 		       "    --license                      show license\n"
 		       "    --version                      show version\n");
@@ -84,6 +85,10 @@ namespace XYO::GrammarCompiler::Application {
 				if (opt.indexOf("=", 0, optIndex)) {
 					optValue = opt.substring(optIndex + 1);
 					opt = opt.substring(0, optIndex);
+				};
+				if (opt == "help") {
+					showUsage();
+					return 0;
 				};
 				if (opt == "usage") {
 					showUsage();
