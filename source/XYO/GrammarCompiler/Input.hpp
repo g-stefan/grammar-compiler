@@ -14,7 +14,7 @@
 namespace XYO::GrammarCompiler {
 
 	class Input {
-			XYO_DISALLOW_COPY_ASSIGN_MOVE(Input);
+			XYO_PLATFORM_DISALLOW_COPY_ASSIGN_MOVE(Input);
 
 		public:
 			TPointer<IRead> iRead;

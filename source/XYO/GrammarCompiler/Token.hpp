@@ -14,7 +14,7 @@
 namespace XYO::GrammarCompiler {
 
 	struct Token : public TXList5Node<Token> {
-			XYO_DISALLOW_COPY_ASSIGN_MOVE(Token);
+			XYO_PLATFORM_DISALLOW_COPY_ASSIGN_MOVE(Token);
 
 		public:
 			typedef uint16_t Type;

@@ -14,7 +14,7 @@
 namespace XYO::GrammarCompiler::Application {
 
 	class CodeInfo : public Object {
-			XYO_DISALLOW_COPY_ASSIGN_MOVE(CodeInfo);
+			XYO_PLATFORM_DISALLOW_COPY_ASSIGN_MOVE(CodeInfo);
 
 		public:
 			int codeId;
