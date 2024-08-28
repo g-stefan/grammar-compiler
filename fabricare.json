@@ -1,43 +1,43 @@
 {
-	"solution" : {
-		"name" : "grammar-compiler",
-		"type" : "xyo-cpp",
-		"projects" : [
+	"solution": {
+		"name": "grammar-compiler",
+		"type": "xyo-cpp",
+		"projects": [
 			{
-				"name" : "grammar-compiler",
-				"make" : "lib-and-dll",
+				"name": "grammar-compiler",
+				"make" :  "dll-or-lib",
 				"SPDX-License-Identifier": "MIT",
-				"sourcePath" : "XYO/GrammarCompiler",
-				"dependency" : [
+				"sourcePath": "XYO/GrammarCompiler",
+				"dependency": [
 					"xyo-system"
 				],
-				"versionName" : "grammar-compiler.library"
+				"versionName": "grammar-compiler.library"
 			},
 			{
-				"name" : "grammar-compiler.application",
-				"make" : "lib",
+				"name": "grammar-compiler.application.static",
+				"make": "lib",
 				"SPDX-License-Identifier": "MIT",
-				"sourcePath" : [
+				"sourcePath": [
 					"XYO/GrammarCompiler.Application",
 					"XYO/GrammarCompiler.Application/Code"
 				],
-				"dependency" : [
+				"dependency": [
 					"grammar-compiler"
 				],
-				"defines" : [
+				"defines": [
 					"XYO_GRAMMARCOMPILER_APPLICATION_LIBRARY"
 				],
-				"linkVersion" : "grammar-compiler"
+				"linkVersion": "grammar-compiler"
 			},
 			{
-				"name" : "grammar-compiler",
-				"make" : "exe.static",
+				"name": "grammar-compiler",
+				"make": "exe",
 				"SPDX-License-Identifier": "MIT",
-				"sourcePath" : [
+				"sourcePath": [
 					"XYO/GrammarCompiler.Application",
 					"XYO/GrammarCompiler.Application/Code"
 				],
-				"dependency" : [
+				"dependency": [
 					"grammar-compiler"
 				]
 			}

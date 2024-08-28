@@ -6,7 +6,7 @@
 			{
 				"name" : "grammar-compiler.test",
 				"type" : "xyo-cpp",
-				"make" : "exe.static",
+				"make" : "exe",
 				"SPDX-License-Identifier": "MIT",
 				"includePath" : [
 					"output/test"
