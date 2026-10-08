@@ -1,0 +1,39 @@
+{
+	"solution" : {
+		"name" : "grammar-compiler",
+		"type" : "xyo-cpp",
+		"projects" : [
+			{
+				"name" : "grammar-compiler.test.parser",
+				"type" : "xyo-cpp",
+				"make" : "exe",
+				"SPDX-License-Identifier": "Unlicense",
+				"includePath" : [
+					"output/test"
+				],
+				"sourcePath" : [
+					"@test/Parser",
+					"@output/test/Parser/Loop",
+					"@output/test/Parser/Drift",
+					"@output/test/Parser/Backtrack",
+					"@output/test/Parser/Recursive",
+					"@output/test/Parser/Group",
+					"@output/test/Parser/OrAssign",
+					"@output/test/Parser/AndAssign",
+					"@output/test/Parser/Negation",
+					"@output/test/Parser/Interval",
+					"@output/test/Parser/Count",
+					"@output/test/Parser/LeftRecursion",
+					"@output/test/Parser/LongestMatch",
+					"@output/test/Parser/LiteralLongestMatch",
+					"@output/test/Parser/NotOptimized"
+				],
+				"dependency" : [
+					"grammar-compiler"
+				],
+				"outputPath" : "output/test",
+				"noVersion" : true
+			}
+		]
+	}
+}

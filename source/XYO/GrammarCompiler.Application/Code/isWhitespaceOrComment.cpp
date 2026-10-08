@@ -7,33 +7,47 @@
 #include <XYO/GrammarCompiler.Application/Code/Code.hpp>
 
 namespace XYO::GrammarCompiler::Application::Code {
+	using namespace XYO::GrammarCompiler;
 
+	static bool isWhiteSpaceOrCommentOneOrMore1(Parser &parser, Token *token, int level);
+
+	static bool isWhiteSpaceOrCommentOneOrMore1(Parser &parser, Token *token, int level) {
+		Token *node = token;
+		size_t loopPosition;
+
+		if(!((isWhiteSpace(parser, node, level)||
+			isComment(parser, node, level)))) {
+			return false;
+		};
+		while(!parser.input.isEof()) {
+			loopPosition = parser.inputPosition();
+			if(!((isWhiteSpace(parser, node, level)||
+			isComment(parser, node, level)))) {
+				break;
+			};
+			if(parser.inputPosition() == loopPosition) {
+				break;
+			};
+		};
+		return true;
+	};
+
+	// @WhiteSpaceOrComment = (WhiteSpace | Comment)+;
 	bool isWhiteSpaceOrComment(Parser &parser, Token *token, int level) {
-		if (parser.memoizationIsFalse(TokenType::WhiteSpaceOrComment)) {
+		Token *node;
+		size_t position;
+		if(!parser.codeBegin(node, TokenType::WhiteSpaceOrComment, level, position)) {
 			return false;
 		};
 
-		--level;
-		if (level <= 0) {
-			throw std::runtime_error("parser-stack-overflow");
-		};
-
-		// ---
-
-		if (isWhiteSpace(parser, token, level)) {
+		if(isWhiteSpaceOrCommentOneOrMore1(parser, node, level)) {
+			parser.codeEndTrue(token, node);
 			return true;
 		};
 
-		if (isComment(parser, token, level)) {
-			return true;
-		};
-
-		if (isBOM(parser, token, level)) {
-			return true;
-		};
-
-		parser.memoizationSetFalse(TokenType::WhiteSpaceOrComment);
+		parser.codeEndFalse(node, TokenType::WhiteSpaceOrComment, position);
 		return false;
 	};
 
 };
+

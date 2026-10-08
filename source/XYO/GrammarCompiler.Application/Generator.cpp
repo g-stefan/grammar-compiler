@@ -5,717 +5,307 @@
 // SPDX-License-Identifier: MIT
 
 #include <XYO/GrammarCompiler.Application/Generator.hpp>
-#include <XYO/GrammarCompiler.Application/Code/Code.hpp>
-#include <XYO/GrammarCompiler.Application/TokenTypeExtra.hpp>
-#include <XYO/GrammarCompiler.Application/Debug.hpp>
-#include <XYO/System.hpp>
 
 namespace XYO::GrammarCompiler::Application {
 
-	using namespace XYO::GrammarCompiler::Application::Code;
+	static const char *separator = "\r\n\t\t\t";
 
 	Generator::Generator() {
-		tokenList = nullptr;
+		grammar = nullptr;
+		rule = nullptr;
+		functionId = 0;
 	};
 
 	Generator::~Generator(){};
 
 	String Generator::toString(int x) {
 		char buffer[24];
-		sprintf(buffer, "%d", x);
+		snprintf(buffer, sizeof(buffer), "%d", x);
 		return buffer;
 	};
 
-	String Generator::getSymbol(const String &symbol) {
-		if (symbol[0] == '@') {
-			return symbol.index(1);
-		};
-		return symbol;
+	String Generator::tokenType() {
+		String retV = "TokenType::";
+		retV += rule->value;
+		return retV;
 	};
 
-	String Generator::incFunctionCodeId(const String &symbol) {
-		TPointer<CodeInfo> info;
-		codeInfo.get(symbol, info);
-		if (!info) {
-			info.newMemory();
-		};
-
-		info->codeId++;
-
-		codeInfo.set(symbol, info);
-
-		return toString(info->codeId);
+	// Helper function of the current rule, returns its name
+	String Generator::newFunction(const char *kind, String &functionCode) {
+		++functionId;
+		String functionName;
+		functionName << "is" << rule->value << kind << toString(functionId);
+		functionCode = "\tstatic bool ";
+		functionCode << functionName << "(Parser &parser, Token *token, int level)";
+		headerFnIntern << functionCode << ";\r\n";
+		functionCode << " {\r\n";
+		return functionName;
 	};
 
-	void Generator::setFunctionHeader(const String &symbol, const String &functionHeader) {
-		TPointer<CodeInfo> info;
-		codeInfo.get(symbol, info);
-		if (!info) {
-			info.newMemory();
-		};
-
-		info->headerFn += functionHeader;
-
-		codeInfo.set(symbol, info);
+	void Generator::endFunction(const String &functionName, String &functionCode) {
+		functionCode << "\t};\r\n\r\n";
+		codeFnIntern << functionCode;
 	};
 
-	void Generator::setFunctionHeaderIntern(const String &symbol, const String &functionHeader) {
-		TPointer<CodeInfo> info;
-		codeInfo.get(symbol, info);
-		if (!info) {
-			info.newMemory();
-		};
-
-		info->headerFnIntern += functionHeader;
-
-		codeInfo.set(symbol, info);
+	// Repeat code while it matches and consumes input, requires loopPosition
+	String Generator::loopCode(const String &code, const char *indent) {
+		String retV;
+		retV << indent << "while(!parser.input.isEof()) {\r\n";
+		retV << indent << "\tloopPosition = parser.inputPosition();\r\n";
+		retV << indent << "\tif(!(" << code << ")) {\r\n";
+		retV << indent << "\t\tbreak;\r\n";
+		retV << indent << "\t};\r\n";
+		retV << indent << "\tif(parser.inputPosition() == loopPosition) {\r\n";
+		retV << indent << "\t\tbreak;\r\n";
+		retV << indent << "\t};\r\n";
+		retV << indent << "};\r\n";
+		return retV;
 	};
 
-	void Generator::setFunctionCode(const String &symbol, const String &functionCode) {
-		TPointer<CodeInfo> info;
-		codeInfo.get(symbol, info);
-		if (!info) {
-			info.newMemory();
-		};
-
-		info->codeFn += functionCode;
-
-		codeInfo.set(symbol, info);
-	};
-
-	bool Generator::getValue(Token *symbol, Token *token) {
-		if (token == nullptr) {
-			return false;
-		};
-
-		if (token->type == TokenType::Number) {
-			code += token->value;
-			return true;
-		};
-		if (token->type == TokenType::String) {
-
-			code += "parser.inputIsToken(";
-			code += token->value;
-			code += ", TokenType::";
-			code += getSymbol(symbol->value);
-			code += ", node)";
-
-			return true;
-		};
-		if (token->type == TokenType::Symbol) {
-			code += "is";
-			code += getSymbol(token->value);
-			code += "(parser, node, level)";
-			return true;
-		};
-		if (token->type == TokenType::Any) {
-			code += "parser.inputIsTokenAny(";
-			code += "TokenType::";
-			code += getSymbol(symbol->value);
-			code += ", node)";
-			return true;
-		};
-		if (token->type == TokenType::ExpressionTerm) {
-
-			if (token->childHead == nullptr) {
-				return false;
-			};
-
-			return getValue(symbol, token->childHead);
-		};
-		if (token->type == TokenType::Group) {
-
-			String functionId = incFunctionCodeId(symbol->value);
-			String functionName;
-			String functionHeader;
-			String functionCode;
-
-			functionName = "is";
-			functionName += getSymbol(symbol->value);
-			functionName += "Parentheses";
-			functionName += functionId;
-
-			functionHeader = "\tstatic bool ";
-			functionHeader += functionName;
-			functionHeader += "(Parser &parser, Token *token, int level)";
-
-			functionCode = functionHeader;
-			functionCode += " {\r\n";
-
-			functionHeader += ";\r\n";
-
-			String saveCode = code;
-			code = "";
-			if (!expression(symbol, token->childHead->childHead)) {
-				code = saveCode;
-				return false;
-			};
-
-			functionCode += "\t\tToken *node  = TokenList::newNode();\r\n";
-			functionCode += "\t\tnode->type = ";
-			functionCode += "TokenType::";
-			functionCode += getSymbol(symbol->value);
-			functionCode += ";\r\n";
-			functionCode += "\r\n";
-
-			functionCode += "\t\tif(";
-			functionCode += code;
-			functionCode += ") {\r\n";
-			functionCode += "\t\t\tTokenList::transferChild(token, node);\r\n";
-			functionCode += "\t\t\tTokenList::destructor(node);\r\n";
-			functionCode += "\t\t\treturn true;\r\n";
-			functionCode += "\t\t};\r\n";
-			functionCode += "\r\n";
-			functionCode += "\t\tparser.inputRestore(node);\r\n";
-			functionCode += "\t\tTokenList::destructor(node);\r\n";
-			functionCode += "\t\treturn false;\r\n";
-			functionCode += "\t};\r\n";
-			functionCode += "\r\n";
-
-			code = saveCode;
-			code += functionName;
-			code += "(parser, node, level)";
-
-			setFunctionHeaderIntern(symbol->value, functionHeader);
-			setFunctionCode(symbol->value, functionCode);
-
-			return true;
-		};
-		if (token->type == TokenType::Interval) {
-			Token *str1;
-			Token *str2;
-
-			if (!findByTypeNext(token->childHead, TokenType::String, str1)) {
-				return false;
-			};
-
-			if (!findByTypeNext(str1->next, TokenType::String, str2)) {
-				return false;
-			};
-
-			if (str1->value.length() == 0) {
-				return false;
-			};
-			if (str2->value.length() == 0) {
-				return false;
-			};
-			if (str1->value.length() != str2->value.length()) {
-				return false;
-			};
-
-			code += "parser.inputIsBetween(";
-			code += str1->value;
-			code += ",";
-			code += str2->value;
-			code += ", TokenType::";
-			code += getSymbol(symbol->value);
-			code += ", node)";
-
-			return true;
-		};
-
-		if (token->type == TokenType::Negation) {
-
-			String functionId = incFunctionCodeId(symbol->value);
-			String functionName;
-			String functionHeader;
-			String functionCode;
-
-			functionName = "is";
-			functionName += symbol->value;
-			functionName += "Not";
-			functionName += functionId;
-
-			functionHeader = "\tstatic bool ";
-			functionHeader += functionName;
-			functionHeader += "(Parser &parser, Token *token, int level)";
-
-			functionCode = functionHeader;
-			functionCode += " {\r\n";
-
-			functionHeader += ";\r\n";
-
-			String saveCode = code;
-			code = "";
-			if (!getTermValue(symbol, token->next)) {
-				code = saveCode;
-				return false;
-			};
-
-			functionCode += "\t\tToken *node  = TokenList::newNode();\r\n";
-			functionCode += "\r\n";
-			functionCode += "\t\tif(";
-			functionCode += code;
-			functionCode += ") {\r\n";
-			functionCode += "\t\t\tparser.inputRestore(node);\r\n";
-			functionCode += "\t\t\tTokenList::destructor(node);\r\n";
-			functionCode += "\t\t\treturn false;\r\n";
-			functionCode += "\t\t};\r\n";
-			functionCode += "\r\n";
-
-			functionCode += "\t\tTokenList::destructor(node);\r\n";
-			functionCode += "\t\treturn true;\r\n";
-			functionCode += "\t};\r\n";
-			functionCode += "\r\n";
-
-			code = saveCode;
-			code += functionName;
-			code += "(parser, node, level)";
-
-			setFunctionHeaderIntern(symbol->value, functionHeader);
-			setFunctionCode(symbol->value, functionCode);
-
-			return true;
-		};
-
-		if (token->type == TokenType::ZeroOrOne) {
-			String functionId = incFunctionCodeId(symbol->value);
-			String functionName;
-			String functionHeader;
-			String functionCode;
-
-			functionName = "is";
-			functionName += getSymbol(symbol->value);
-			functionName += "ZeroOrOne";
-			functionName += functionId;
-
-			functionHeader = "\tstatic bool ";
-			functionHeader += functionName;
-			functionHeader += "(Parser &parser, Token *token, int level)";
-
-			functionCode = functionHeader;
-			functionCode += " {\r\n";
-
-			functionHeader += ";\r\n";
-
-			if (token->childHead == nullptr) {
-				return false;
-			};
-
-			String saveCode = code;
-			code = "";
-			if (!getValue(symbol, token->childHead)) {
-				code = saveCode;
-				return false;
-			};
-
-			functionCode += "\t\tToken *node  = token;\r\n";
-			functionCode += "\r\n";
-
-			functionCode += "\t\tif(";
-			functionCode += code;
-			functionCode += ") {\r\n";
-			functionCode += "\t\t\treturn true;\r\n";
-			functionCode += "\t\t};\r\n";
-			functionCode += "\t\treturn true;\r\n";
-			functionCode += "\t};\r\n";
-			functionCode += "\r\n";
-
-			code = saveCode;
-			code += functionName;
-			code += "(parser, node, level)";
-
-			setFunctionHeaderIntern(symbol->value, functionHeader);
-			setFunctionCode(symbol->value, functionCode);
-
-			return true;
-		};
-
-		if (token->type == TokenType::ZeroOrMore) {
-			String functionId = incFunctionCodeId(symbol->value);
-			String functionName;
-			String functionHeader;
-			String functionCode;
-
-			functionName = "is";
-			functionName += getSymbol(symbol->value);
-			functionName += "ZeroOrMore";
-			functionName += functionId;
-
-			functionHeader = "\tstatic bool ";
-			functionHeader += functionName;
-			functionHeader += "(Parser &parser, Token *token, int level)";
-
-			functionCode = functionHeader;
-			functionCode += " {\r\n";
-
-			functionHeader += ";\r\n";
-
-			if (token->childHead == nullptr) {
-				return false;
-			};
-
-			String saveCode = code;
-			code = "";
-			if (!getValue(symbol, token->childHead)) {
-				code = saveCode;
-				return false;
-			};
-
-			functionCode += "\t\tToken *node  = token;\r\n";
-			functionCode += "\r\n";
-
-			functionCode += "\t\twhile(!parser.input.isEof()) {\r\n";
-			functionCode += "\t\t\tif(";
-			functionCode += code;
-			functionCode += ") {\r\n";
-			functionCode += "\t\t\t\tcontinue;\r\n";
-			functionCode += "\t\t\t};\r\n";
-			functionCode += "\t\t\tbreak;\r\n";
-			functionCode += "\t\t};\r\n";
-			functionCode += "\t\treturn true;\r\n";
-			functionCode += "\t};\r\n";
-			functionCode += "\r\n";
-
-			code = saveCode;
-			code += functionName;
-			code += "(parser, node, level)";
-
-			setFunctionHeaderIntern(symbol->value, functionHeader);
-			setFunctionCode(symbol->value, functionCode);
-
-			return true;
-		};
-
-		if (token->type == TokenType::OneOrMore) {
-			String functionId = incFunctionCodeId(symbol->value);
-			String functionName;
-			String functionHeader;
-			String functionCode;
-
-			functionName = "is";
-			functionName += getSymbol(symbol->value);
-			functionName += "OneOrMore";
-			functionName += functionId;
-
-			functionHeader = "\tstatic bool ";
-			functionHeader += functionName;
-			functionHeader += "(Parser &parser, Token *token, int level)";
-
-			functionCode = functionHeader;
-			functionCode += " {\r\n";
-
-			functionHeader += ";\r\n";
-
-			if (token->childHead == nullptr) {
-				return false;
-			};
-
-			String saveCode = code;
-			code = "";
-			if (!getValue(symbol, token->childHead)) {
-				code = saveCode;
-				return false;
-			};
-
-			functionCode += "\t\tToken *node  = TokenList::newNode();\r\n";
-			functionCode += "\t\tnode->type = TokenType::";
-			functionCode += getSymbol(symbol->value);
-			functionCode += ";\r\n";
-			functionCode += "\r\n";
-
-			functionCode += "\t\tif(!(";
-			functionCode += code;
-			functionCode += ")) {\r\n";
-			functionCode += "\t\t\tparser.inputRestore(node);\r\n";
-			functionCode += "\t\t\tTokenList::destructor(node);\r\n";
-			functionCode += "\t\t\treturn false;\r\n";
-			functionCode += "\t\t};\r\n";
-			functionCode += "\t\twhile(!parser.input.isEof()) {\r\n";
-			functionCode += "\t\t\tif(";
-			functionCode += code;
-			functionCode += ") {\r\n";
-			functionCode += "\t\t\t\tcontinue;\r\n";
-			functionCode += "\t\t\t};\r\n";
-			functionCode += "\t\t\tbreak;\r\n";
-			functionCode += "\t\t};\r\n";
-			functionCode += "\t\tTokenList::transferChild(token, node);\r\n";
-			functionCode += "\t\tTokenList::destructor(node);\r\n";
-			functionCode += "\t\treturn true;\r\n";
-			functionCode += "\t};\r\n";
-			functionCode += "\r\n";
-
-			code = saveCode;
-			code += functionName;
-			code += "(parser, node, level)";
-
-			setFunctionHeaderIntern(symbol->value, functionHeader);
-			setFunctionCode(symbol->value, functionCode);
-
-			return true;
-		};
-
-		if (token->type == TokenType::CountInterval) {
-			Token *nr1;
-			Token *nr2;
-
-			if (!findByTypeNext(token->childHead, TokenType::Number, nr1)) {
-				return false;
-			};
-
-			if (!findByTypeNext(nr1->next, TokenType::Number, nr2)) {
-				String functionId = incFunctionCodeId(symbol->value);
-				String functionName;
-				String functionHeader;
-				String functionCode;
-
-				functionName = "is";
-				functionName += getSymbol(symbol->value);
-				functionName += "RepeatM";
-				functionName += functionId;
-
-				functionHeader = "\tstatic bool ";
-				functionHeader += functionName;
-				functionHeader += "(Parser &parser, Token *token, int level)";
-
-				functionCode = functionHeader;
-				functionCode += " {\r\n";
-
-				functionHeader += ";\r\n";
-
-				String saveCode = code;
-				code = "";
-
-				if (token->childHead == nullptr) {
-					return false;
+	// Code of a condition that on failure leaves the input and the tokens unchanged,
+	// except at the top of the rule, where codeEndFalse restores them
+	String Generator::expression(GrammarNode *node, bool isTop) {
+		String code;
+		String functionCode;
+		String functionName;
+		GrammarNode *scan;
+
+		switch (node->type) {
+		case GrammarNodeType::Empty:
+			return "true";
+
+		case GrammarNodeType::Literal:
+			code << "parser.inputIsToken(" << node->value << ", " << tokenType() << ", node)";
+			return code;
+
+		case GrammarNodeType::Range:
+			code << "parser.inputIsBetween(" << node->value << ", " << node->value2 << ", " << tokenType() << ", node)";
+			return code;
+
+		case GrammarNodeType::Any:
+			code << "parser.inputIsTokenAny(" << tokenType() << ", node)";
+			return code;
+
+		case GrammarNodeType::Reference:
+			code << "is" << node->value << "(parser, node, level)";
+			return code;
+
+		case GrammarNodeType::Choice:
+			for (scan = node->childHead; scan != nullptr; scan = scan->next) {
+				if (scan != node->childHead) {
+					code << "||" << separator;
 				};
+				code << expression(scan, false);
+			};
+			if (isTop) {
+				return code;
+			};
+			functionName = "(";
+			functionName << code << ")";
+			return functionName;
 
-				if (!getValue(symbol, token->childHead)) {
-					code = saveCode;
-					return false;
+		case GrammarNodeType::Optional:
+			code << "(" << expression(node->childHead, false) << " || true)";
+			return code;
+
+		case GrammarNodeType::Sequence: {
+			if (!isTop) {
+				functionName = newFunction("Sequence", functionCode);
+			};
+			for (scan = node->childHead; scan != nullptr; scan = scan->next) {
+				if (scan != node->childHead) {
+					code << "&&" << separator;
 				};
-
-				functionCode += "\t\tToken *node  = TokenList::newNode();\r\n";
-				functionCode += "\t\tnode->type = TokenType::";
-				functionCode += getSymbol(symbol->value);
-				functionCode += ";\r\n";
-				functionCode += "\r\n";
-
-				functionCode += "\t\tint m;";
-				functionCode += "\t\tfor(m = 0; m < ";
-				functionCode += nr1->value;
-				functionCode += "; m++){\r\n";
-				functionCode += "\t\t\t\tif(";
-				functionCode += code;
-				functionCode += ") {\r\n";
-				functionCode += "\t\t\t\t\tcontinue;\r\n";
-				functionCode += "\t\t\t\t};\r\n";
-				functionCode += "\t\t\tparser.inputRestore(node);\r\n";
-				functionCode += "\t\t\tTokenList::destructor(node);\r\n";
-				functionCode += "\t\t\treturn false;\r\n";
-				functionCode += "\t\t\t};\r\n";
-
-				functionCode += "\t\twhile(!parser.input.isEof()) {\r\n";
-				functionCode += "\t\t\tif(";
-				functionCode += code;
-				functionCode += ") {\r\n";
-				functionCode += "\t\t\t\tcontinue;\r\n";
-				functionCode += "\t\t\t};\r\n";
-				functionCode += "\t\t\tbreak;\r\n";
-				functionCode += "\t\t};\r\n";
-
-				functionCode += "\t\tTokenList::transferChild(token, node);\r\n";
-				functionCode += "\t\tTokenList::destructor(node);\r\n";
-				functionCode += "\t\treturn true;\r\n";
-				functionCode += "\t};\r\n";
-				functionCode += "\r\n";
-
-				code = saveCode;
-				code += functionName;
-				code += "(parser,node,level)";
-
-				setFunctionHeaderIntern(symbol->value, functionHeader);
-				setFunctionCode(symbol->value, functionCode);
-
-				return true;
+				code << expression(scan, false);
+			};
+			if (isTop) {
+				return code;
 			};
 
-			String functionId = incFunctionCodeId(symbol->value);
-			String functionName;
-			String functionHeader;
-			String functionCode;
-
-			functionName = "is";
-			functionName += getSymbol(symbol->value);
-			functionName += "RepeatMN";
-			functionName += functionId;
-
-			functionHeader = "\tstatic bool ";
-			functionHeader += functionName;
-			functionHeader += "(Parser &parser, Token *token, int level)";
-
-			functionCode = functionHeader;
-			functionCode += " {\r\n";
-
-			functionHeader += ";\r\n";
-
-			String saveCode = code;
-			code = "";
-
-			if (token->childHead == nullptr) {
-				return false;
-			};
-
-			if (!getValue(symbol, token->childHead)) {
-				code = saveCode;
-				return false;
-			};
-
-			functionCode += "\t\tToken *node  = TokenList::newNode();\r\n";
-			functionCode += "\t\tnode->type = TokenType::";
-			functionCode += getSymbol(symbol->value);
-			functionCode += ";\r\n";
-			functionCode += "\r\n";
-
-			functionCode += "\t\tint mn;";
-			functionCode += "\t\tfor(mn = 0; mn < ";
-			functionCode += nr2->value;
-			functionCode += "; mn++) {\r\n";
-			functionCode += "\t\t\t\tif(";
-			functionCode += code;
-			functionCode += ") {\r\n";
-			functionCode += "\t\t\t\t\tcontinue;\r\n";
-			functionCode += "\t\t\t\t};\r\n";
-			functionCode += "\t\t\t\tif(mn >= ";
-			functionCode += nr1->value;
-			functionCode += ") {";
-			functionCode += "\t\t\t\tTokenList::transferChild(token, node);\r\n";
-			functionCode += "\t\t\t\tTokenList::destructor(node);\r\n";
-			functionCode += "\t\t\t\treturn true;\r\n";
-			functionCode += "\t\t\t\t};\r\n";
-			functionCode += "\t\t\t\tparser.inputRestore(node);\r\n";
-			functionCode += "\t\t\t\tTokenList::destructor(node);\r\n";
-			functionCode += "\t\t\t\treturn false;\r\n";
-			functionCode += "\t\t\t};\r\n";
-
-			functionCode += "\t\tTokenList::transferChild(token, node);\r\n";
-			functionCode += "\t\tTokenList::destructor(node);\r\n";
-			functionCode += "\t\treturn true;\r\n";
-			functionCode += "\t};\r\n";
-			functionCode += "\r\n";
-
-			code = saveCode;
-			code += functionName;
-			code += "(parser, node, level)";
-
-			setFunctionHeaderIntern(symbol->value, functionHeader);
-			setFunctionCode(symbol->value, functionCode);
-
-			return true;
+			functionCode << "\t\tsize_t position = parser.inputPosition();\r\n";
+			functionCode << "\t\tToken *node = TokenList::newNode();\r\n";
+			functionCode << "\t\tnode->type = " << tokenType() << ";\r\n";
+			functionCode << "\r\n";
+			functionCode << "\t\tif(" << code << ") {\r\n";
+			functionCode << "\t\t\tParser::tokenTransferChild(token, node);\r\n";
+			functionCode << "\t\t\tTokenList::destructor(node);\r\n";
+			functionCode << "\t\t\treturn true;\r\n";
+			functionCode << "\t\t};\r\n";
+			functionCode << "\r\n";
+			functionCode << "\t\tparser.inputRestore(position);\r\n";
+			functionCode << "\t\tTokenList::destructor(node);\r\n";
+			functionCode << "\t\treturn false;\r\n";
+			endFunction(functionName, functionCode);
+			break;
 		};
 
-		return false;
+		case GrammarNodeType::ZeroOrMore:
+			functionName = newFunction("ZeroOrMore", functionCode);
+			code = expression(node->childHead, false);
+
+			functionCode << "\t\tToken *node = token;\r\n";
+			functionCode << "\t\tsize_t loopPosition;\r\n";
+			functionCode << "\r\n";
+			functionCode << loopCode(code, "\t\t");
+			functionCode << "\t\treturn true;\r\n";
+			endFunction(functionName, functionCode);
+			break;
+
+		case GrammarNodeType::OneOrMore:
+			functionName = newFunction("OneOrMore", functionCode);
+			code = expression(node->childHead, false);
+
+			functionCode << "\t\tToken *node = token;\r\n";
+			functionCode << "\t\tsize_t loopPosition;\r\n";
+			functionCode << "\r\n";
+			functionCode << "\t\tif(!(" << code << ")) {\r\n";
+			functionCode << "\t\t\treturn false;\r\n";
+			functionCode << "\t\t};\r\n";
+			functionCode << loopCode(code, "\t\t");
+			functionCode << "\t\treturn true;\r\n";
+			endFunction(functionName, functionCode);
+			break;
+
+		case GrammarNodeType::Repeat:
+			functionName = newFunction("Repeat", functionCode);
+			code = expression(node->childHead, false);
+
+			functionCode << "\t\tsize_t position = parser.inputPosition();\r\n";
+			if (node->max != node->min) {
+				functionCode << "\t\tsize_t loopPosition;\r\n";
+			};
+			functionCode << "\t\tToken *node = TokenList::newNode();\r\n";
+			functionCode << "\t\tnode->type = " << tokenType() << ";\r\n";
+			functionCode << "\t\tint count;\r\n";
+			functionCode << "\r\n";
+			functionCode << "\t\tfor(count = 0; count < " << toString(node->min) << "; ++count) {\r\n";
+			functionCode << "\t\t\tif(" << code << ") {\r\n";
+			functionCode << "\t\t\t\tcontinue;\r\n";
+			functionCode << "\t\t\t};\r\n";
+			functionCode << "\t\t\tparser.inputRestore(position);\r\n";
+			functionCode << "\t\t\tTokenList::destructor(node);\r\n";
+			functionCode << "\t\t\treturn false;\r\n";
+			functionCode << "\t\t};\r\n";
+			if (node->max < 0) {
+				functionCode << loopCode(code, "\t\t");
+			} else if (node->max > node->min) {
+				functionCode << "\t\tfor(; count < " << toString(node->max) << "; ++count) {\r\n";
+				functionCode << "\t\t\tloopPosition = parser.inputPosition();\r\n";
+				functionCode << "\t\t\tif(!(" << code << ")) {\r\n";
+				functionCode << "\t\t\t\tbreak;\r\n";
+				functionCode << "\t\t\t};\r\n";
+				functionCode << "\t\t\tif(parser.inputPosition() == loopPosition) {\r\n";
+				functionCode << "\t\t\t\tbreak;\r\n";
+				functionCode << "\t\t\t};\r\n";
+				functionCode << "\t\t};\r\n";
+			};
+			functionCode << "\t\tParser::tokenTransferChild(token, node);\r\n";
+			functionCode << "\t\tTokenList::destructor(node);\r\n";
+			functionCode << "\t\treturn true;\r\n";
+			endFunction(functionName, functionCode);
+			break;
+
+		case GrammarNodeType::Not:
+			functionName = newFunction("Not", functionCode);
+			code = expression(node->childHead, false);
+
+			functionCode << "\t\tsize_t position = parser.inputPosition();\r\n";
+			functionCode << "\t\tToken *node = TokenList::newNode();\r\n";
+			functionCode << "\r\n";
+			functionCode << "\t\tif(" << code << ") {\r\n";
+			functionCode << "\t\t\tparser.inputRestore(position);\r\n";
+			functionCode << "\t\t\tTokenList::destructor(node);\r\n";
+			functionCode << "\t\t\treturn false;\r\n";
+			functionCode << "\t\t};\r\n";
+			functionCode << "\r\n";
+			functionCode << "\t\tTokenList::destructor(node);\r\n";
+			functionCode << "\t\treturn true;\r\n";
+			endFunction(functionName, functionCode);
+			break;
+
+		default:
+			error = "Unknown grammar node";
+			return "false";
+		};
+
+		functionName << "(parser, node, level)";
+		return functionName;
 	};
 
-	bool Generator::getTermValue(Token *symbol, Token *token) {
-		if (token->type == TokenType::ExpressionTerm) {
-			if (token->childHead == nullptr) {
-				Debug::tokenPrintList(token);
-				fflush(stdout);
-				return false;
+	static String comment(const String &text) {
+		String retV = "\t// ";
+		const char *scan;
+		for (scan = text.value(); *scan != 0; ++scan) {
+			if ((*scan == '\r') || (*scan == '\n')) {
+				retV += ' ';
+				continue;
 			};
-			return getValue(symbol, token->childHead);
+			retV += *scan;
 		};
-		if (token->type == TokenType::ExpressionPrecedence) {
-			// true && true && false => false - restore all
-
-			String functionId = incFunctionCodeId(symbol->value);
-			String functionName;
-			String functionHeader;
-			String functionCode;
-
-			functionName = "is";
-			functionName += getSymbol(symbol->value);
-			functionName += "Precedence";
-			functionName += functionId;
-
-			functionHeader = "\tstatic bool ";
-			functionHeader += functionName;
-			functionHeader += "(Parser &parser, Token *token, int level)";
-
-			functionCode = functionHeader;
-			functionCode += " {\r\n";
-
-			functionHeader += ";\r\n";
-
-			String saveCode = code;
-			code = "";
-			bool retV = expression(symbol, token->childHead);
-
-			functionCode += "\t\tToken *node  = TokenList::newNode();\r\n";
-			functionCode += "\t\tnode->type = ";
-			functionCode += "TokenType::";
-			functionCode += getSymbol(symbol->value);
-			functionCode += ";\r\n";
-			functionCode += "\r\n";
-
-			functionCode += "\t\tif(";
-			functionCode += code;
-			functionCode += ") {\r\n";
-			functionCode += "\t\t\tTokenList::transferChild(token, node);\r\n";
-			functionCode += "\t\t\tTokenList::destructor(node);\r\n";
-			functionCode += "\t\t\treturn true;\r\n";
-			functionCode += "\t\t};\r\n";
-			functionCode += "\r\n";
-
-			functionCode += "\t\tparser.inputRestore(node);\r\n";
-			functionCode += "\t\tTokenList::destructor(node);\r\n";
-			functionCode += "\t\treturn false;\r\n";
-			functionCode += "\t};\r\n";
-			functionCode += "\r\n";
-
-			code = saveCode;
-			code += functionName;
-			code += "(parser, node, level)";
-
-			setFunctionHeaderIntern(symbol->value, functionHeader);
-			setFunctionCode(symbol->value, functionCode);
-
-			return retV;
-		};
-		return false;
+		retV += "\r\n";
+		return retV;
 	};
 
-	bool Generator::expression(Token *symbol, Token *token) {
+	// Helper functions and the function of the rule
+	String Generator::ruleCode(GrammarNode *rule_) {
+		String functionCode;
+		String code;
 
-		Token *index;
-		Token *op;
+		rule = rule_;
+		functionId = 0;
+		headerFnIntern = "";
+		codeFnIntern = "";
 
-		if (findByTypeNext(token, TokenType::ExpressionTerm, TokenType::ExpressionPrecedence, index)) {
+		code = expression(rule->childHead, true);
 
-			if (!getTermValue(symbol, index)) {
-				return false;
-			};
+		String source;
+		if (rule->isParserTable) {
+			source += "@";
+		};
+		source << rule->value << " = " << rule->source << ";";
+		functionCode << comment(source);
 
-			index = index->next;
-			for (; index != nullptr; index = index->next) {
-				if (findByTypeNext(index, TokenType::ExpressionOperator, op)) {
-					if (findByTypeNext(index->next, TokenType::ExpressionTerm, TokenType::ExpressionPrecedence, index)) {
-						if (op->subType == TokenType::Alternation) {
-							code += "||";
-							code += "\r\n\t\t\t";
-							if (!getTermValue(symbol, index)) {
-								return false;
-							};
-							continue;
-						};
-						if (op->subType == TokenType::Concatenation) {
-							code += "&&"; // restore all on fail ...
-							code += "\r\n\t\t\t";
-							if (!getTermValue(symbol, index)) {
-								return false;
-							};
-							continue;
-						};
-						return false;
-					};
-				};
-			};
-
-			return true;
+		String optimized = Grammar::toStringRule(rule, rule->childHead);
+		if (optimized != source) {
+			String text = "Optimized: ";
+			text << optimized;
+			functionCode << comment(text);
 		};
 
-		return false;
+		const char *scan = rule->notes.value();
+		while (*scan != 0) {
+			String text = "Note: ";
+			for (; (*scan != 0) && (*scan != '\r') && (*scan != '\n'); ++scan) {
+				text += *scan;
+			};
+			for (; (*scan == '\r') || (*scan == '\n'); ++scan) {
+			};
+			functionCode << comment(text);
+		};
+
+		functionCode << "\tbool is" << rule->value << "(Parser &parser, Token *token, int level) {\r\n";
+		functionCode << "\t\tToken *node;\r\n";
+		functionCode << "\t\tsize_t position;\r\n";
+		functionCode << "\t\tif(!parser.codeBegin(node, " << tokenType() << ", level, position)) {\r\n";
+		functionCode << "\t\t\treturn false;\r\n";
+		functionCode << "\t\t};\r\n";
+		functionCode << "\r\n";
+		functionCode << "\t\tif(" << code << ") {\r\n";
+		functionCode << "\t\t\tparser.codeEndTrue(token, node);\r\n";
+		functionCode << "\t\t\treturn true;\r\n";
+		functionCode << "\t\t};\r\n";
+		functionCode << "\r\n";
+		functionCode << "\t\tparser.codeEndFalse(node, " << tokenType() << ", position);\r\n";
+		functionCode << "\t\treturn false;\r\n";
+		functionCode << "\t};\r\n";
+		functionCode << "\r\n";
+
+		String retV;
+		if (headerFnIntern.length() > 0) {
+			retV << headerFnIntern << "\r\n";
+		};
+		retV << codeFnIntern << functionCode;
+		return retV;
 	};
 
 	bool Generator::saveCode(const String &sourceNamespace,
@@ -724,23 +314,23 @@ namespace XYO::GrammarCompiler::Application {
 	                         const String &sourceHeaderFile,
 	                         const String &outputFolder) {
 
-		TPointer<CodeInfo> info;
-		String symbol;
-		String headerFn;
-		String codeFn;
-		size_t i;
 		String content;
-
+		String fileName;
 		String sourceHeaderFileContents;
 		String outputFolderX;
 		String sourceIncludePathX;
+		GrammarNode *scan;
 
 		if (!Shell::fileGetContents(sourceHeaderFile, sourceHeaderFileContents)) {
+			error = "Unable to read source header file ";
+			error << sourceHeaderFile;
 			return false;
 		};
 
 		if (outputFolder.length() > 0) {
 			if (!Shell::mkdirRecursively(outputFolder)) {
+				error = "Unable to create output folder ";
+				error << outputFolder;
 				return false;
 			};
 
@@ -753,74 +343,6 @@ namespace XYO::GrammarCompiler::Application {
 			sourceIncludePathX += "/";
 		};
 
-		Token *index;
-
-		index = TokenList::begin(tokenList);
-		if (index == nullptr) {
-			return false;
-		};
-
-		for (index = index->childHead; index != nullptr; index = index->next) {
-			if (index->type == TokenType::Statement) {
-				Token *symbol;
-				Token *expression;
-				if (findByTypeNext(index->childHead, TokenType::Symbol, symbol)) {
-
-					String functionName;
-					String functionHeader;
-					String functionCode;
-
-					functionName = "is";
-					functionName += getSymbol(symbol->value);
-
-					functionHeader = "\tbool ";
-					functionHeader += functionName;
-					functionHeader += "(Parser &parser, Token *token, int level)";
-
-					functionCode = functionHeader;
-					functionCode += "{\r\n";
-
-					functionHeader += ";\r\n";
-
-					if (findByTypeNext(symbol->next, TokenType::Expression, expression)) {
-
-						functionCode += "\t\tToken *node;\r\n";
-						functionCode += "\t\tif(!parser.codeBegin(node, TokenType::";
-						functionCode += getSymbol(symbol->value);
-						functionCode += ", level)){\r\n";
-						functionCode += "\t\t\treturn false;\r\n";
-						functionCode += "\t\t};\r\n";
-						functionCode += "\r\n";
-
-						functionCode += "\t\tif(";
-
-						code = "";
-						Generator::expression(symbol, expression->childHead);
-						functionCode += code;
-
-						functionCode += "){\r\n";
-
-						functionCode += "\t\t\tparser.codeEndTrue(token, node);\r\n";
-
-						functionCode += "\t\t\treturn true;\r\n";
-						functionCode += "\t\t};\r\n";
-
-						functionCode += "\r\n";
-
-						functionCode += "\t\tparser.codeEndFalse(node, TokenType::";
-						functionCode += getSymbol(symbol->value);
-						functionCode += ");\r\n";
-					};
-
-					functionCode += "\t\treturn false;\r\n";
-					functionCode += "\t};\r\n\r\n";
-
-					setFunctionHeader(symbol->value, functionHeader);
-					setFunctionCode(symbol->value, functionCode);
-				};
-			};
-		};
-
 		//
 		// Code.hpp
 		//
@@ -828,74 +350,60 @@ namespace XYO::GrammarCompiler::Application {
 		content = sourceHeaderFileContents;
 		content += "\r\n";
 
-		content << "#ifndef " << sourceIncludeGuard << "_CODE_HPP\r\n"
-		                                               "#define "
-		        << sourceIncludeGuard << "_CODE_HPP\r\n"
-		                                 "\r\n"
-		                                 "#ifndef "
-		        << sourceIncludeGuard << "_TOKENTYPE_HPP\r\n"
-		                                 "#	include <"
-		        << sourceIncludePathX << "TokenType.hpp>\r\n"
-		                                 "#endif\r\n"
-		                                 "\r\n"
-		                                 "namespace "
-		        << sourceNamespace << " {\r\n"
-		                              "\tusing namespace XYO::GrammarCompiler;\r\n"
-		                              "\r\n";
+		content << "#ifndef " << sourceIncludeGuard << "_CODE_HPP\r\n";
+		content << "#define " << sourceIncludeGuard << "_CODE_HPP\r\n";
+		content += "\r\n";
+		content << "#ifndef " << sourceIncludeGuard << "_TOKENTYPE_HPP\r\n";
+		content << "#	include <" << sourceIncludePathX << "TokenType.hpp>\r\n";
+		content += "#endif\r\n";
+		content += "\r\n";
+		content << "namespace " << sourceNamespace << " {\r\n";
+		content += "\tusing namespace XYO::GrammarCompiler;\r\n";
+		content += "\r\n";
 
-		for (i = 0; i < codeInfo.length(); ++i) {
-			info = (*codeInfo.arrayValue)[i];
-			if (!info) {
-				continue;
-			};
-			content += info->headerFn;
+		for (scan = grammar->childHead; scan != nullptr; scan = scan->next) {
+			content << "\tbool is" << scan->value << "(Parser &parser, Token *token, int level);\r\n";
 		};
 
-		content += "\r\n"
-		           "};\r\n"
-		           "\r\n"
-		           "#endif\r\n"
-		           "\r\n";
+		content += "\r\n";
+		content += "};\r\n";
+		content += "\r\n";
+		content += "#endif\r\n";
+		content += "\r\n";
 
-		if (!System::Shell::filePutContents(outputFolderX + "Code.hpp", content)) {
+		fileName = outputFolderX + "Code.hpp";
+		if (!Shell::filePutContents(fileName, content)) {
+			error = "Unable to write file ";
+			error << fileName;
 			return false;
 		};
 
-		// [Statement].cpp
+		//
+		// is[Rule].cpp
+		//
 
-		for (i = 0; i < codeInfo.length(); ++i) {
-			symbol = (*codeInfo.arrayKey)[i];
-			info = (*codeInfo.arrayValue)[i];
-			if (!info) {
-				continue;
-			};
-
+		for (scan = grammar->childHead; scan != nullptr; scan = scan->next) {
 			content = sourceHeaderFileContents;
 			content += "\r\n";
 
 			content << "#include <" << sourceIncludePathX << "Code.hpp>\r\n";
-			content << "\r\n";
+			content += "\r\n";
 			content << "namespace " << sourceNamespace << " {\r\n";
-			content << "\tusing namespace XYO::GrammarCompiler;\r\n";
-			content << "\r\n";
+			content += "\tusing namespace XYO::GrammarCompiler;\r\n";
+			content += "\r\n";
+			content += ruleCode(scan);
+			content += "};\r\n";
+			content += "\r\n";
 
-			if (info->headerFnIntern.length()) {
-				content += info->headerFnIntern;
-				content += "\r\n";
+			if (error.length() > 0) {
+				return false;
 			};
 
-			content += info->codeFn;
-
-			content += "};\r\n"
-			           "\r\n";
-
-			String fileName;
-
 			fileName = outputFolderX + "is";
-			fileName += getSymbol(symbol);
-			fileName += ".cpp";
-
-			if (!System::Shell::filePutContents(fileName, content)) {
+			fileName << scan->value << ".cpp";
+			if (!Shell::filePutContents(fileName, content)) {
+				error = "Unable to write file ";
+				error << fileName;
 				return false;
 			};
 		};
@@ -907,22 +415,18 @@ namespace XYO::GrammarCompiler::Application {
 		content = sourceHeaderFileContents;
 		content += "\r\n";
 
-		for (i = 0; i < codeInfo.length(); ++i) {
-			symbol = (*codeInfo.arrayKey)[i];
-			info = (*codeInfo.arrayValue)[i];
-			if (!info) {
-				continue;
-			};
-
-			content << "#include <" << sourceIncludePathX << "is" << getSymbol(symbol) << ".cpp>\r\n";
+		for (scan = grammar->childHead; scan != nullptr; scan = scan->next) {
+			content << "#include <" << sourceIncludePathX << "is" << scan->value << ".cpp>\r\n";
 		};
 
 		content << "#include <" << sourceIncludePathX << "ParserTable.cpp>\r\n";
 		content << "#include <" << sourceIncludePathX << "TokenType.cpp>\r\n";
-
 		content += "\r\n";
 
-		if (!System::Shell::filePutContents(outputFolderX + "Code.Amalgam.cpp", content)) {
+		fileName = outputFolderX + "Code.Amalgam.cpp";
+		if (!Shell::filePutContents(fileName, content)) {
+			error = "Unable to write file ";
+			error << fileName;
 			return false;
 		};
 
@@ -946,16 +450,8 @@ namespace XYO::GrammarCompiler::Application {
 		content += "\t\tswitch (type) {\r\n";
 		content += "\t\t\tTOKENTYPE_STR(Unknown);\r\n";
 
-		for (i = 0; i < codeInfo.length(); ++i) {
-			symbol = (*codeInfo.arrayKey)[i];
-			info = (*codeInfo.arrayValue)[i];
-			if (!info) {
-				continue;
-			};
-
-			content += "\t\t\tTOKENTYPE_STR(";
-			content += getSymbol(symbol);
-			content += ");\r\n";
+		for (scan = grammar->childHead; scan != nullptr; scan = scan->next) {
+			content << "\t\t\tTOKENTYPE_STR(" << scan->value << ");\r\n";
 		};
 
 		content += "\t\tdefault:\r\n";
@@ -968,7 +464,10 @@ namespace XYO::GrammarCompiler::Application {
 		content += "};\r\n";
 		content += "\r\n";
 
-		if (!System::Shell::filePutContents(outputFolderX + "TokenType.cpp", content)) {
+		fileName = outputFolderX + "TokenType.cpp";
+		if (!Shell::filePutContents(fileName, content)) {
+			error = "Unable to write file ";
+			error << fileName;
 			return false;
 		};
 
@@ -993,15 +492,8 @@ namespace XYO::GrammarCompiler::Application {
 		content += "\t\tenum : Token::Type {\r\n";
 		content += "\t\t\tUnknown = 0";
 
-		for (i = 0; i < codeInfo.length(); ++i) {
-			symbol = (*codeInfo.arrayKey)[i];
-			info = (*codeInfo.arrayValue)[i];
-			if (!info) {
-				continue;
-			};
-			content += ",\r\n";
-			content += "\t\t\t";
-			content += getSymbol(symbol);
+		for (scan = grammar->childHead; scan != nullptr; scan = scan->next) {
+			content << ",\r\n\t\t\t" << scan->value;
 		};
 
 		content += "\r\n";
@@ -1014,7 +506,10 @@ namespace XYO::GrammarCompiler::Application {
 		content += "#endif\r\n";
 		content += "\r\n";
 
-		if (!System::Shell::filePutContents(outputFolderX + "TokenType.hpp", content)) {
+		fileName = outputFolderX + "TokenType.hpp";
+		if (!Shell::filePutContents(fileName, content)) {
+			error = "Unable to write file ";
+			error << fileName;
 			return false;
 		};
 
@@ -1041,12 +536,15 @@ namespace XYO::GrammarCompiler::Application {
 		content += "#endif\r\n";
 		content += "\r\n";
 
-		if (!System::Shell::filePutContents(outputFolderX + "ParserTable.hpp", content)) {
+		fileName = outputFolderX + "ParserTable.hpp";
+		if (!Shell::filePutContents(fileName, content)) {
+			error = "Unable to write file ";
+			error << fileName;
 			return false;
 		};
 
 		//
-		// ParserTable.cpp
+		// ParserTable.cpp, @ symbols, the last defined is tried first
 		//
 
 		content = sourceHeaderFileContents;
@@ -1060,21 +558,11 @@ namespace XYO::GrammarCompiler::Application {
 		content += "\r\n";
 		content += "\tParserProcessToken parserTable[] = {\r\n";
 
-		int codeLn = codeInfo.length();
-		for (i = 0; i < codeLn; ++i) {
-			symbol = (*codeInfo.arrayKey)[codeLn - i - 1];
-			info = (*codeInfo.arrayValue)[codeLn - i - 1];
-			if (!info) {
+		for (scan = grammar->childTail; scan != nullptr; scan = scan->back) {
+			if (!scan->isParserTable) {
 				continue;
 			};
-
-			if (symbol[0] != '@') {
-				continue;
-			};
-
-			content += "\t\tis";
-			content += getSymbol(symbol);
-			content += ",\r\n";
+			content << "\t\tis" << scan->value << ",\r\n";
 		};
 
 		content += "\t\t// End\r\n";
@@ -1084,7 +572,10 @@ namespace XYO::GrammarCompiler::Application {
 		content += "};\r\n";
 		content += "\r\n";
 
-		if (!System::Shell::filePutContents(outputFolderX + "ParserTable.cpp", content)) {
+		fileName = outputFolderX + "ParserTable.cpp";
+		if (!Shell::filePutContents(fileName, content)) {
+			error = "Unable to write file ";
+			error << fileName;
 			return false;
 		};
 

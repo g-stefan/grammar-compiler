@@ -7,40 +7,33 @@
 #include <XYO/GrammarCompiler.Application/Code/Code.hpp>
 
 namespace XYO::GrammarCompiler::Application::Code {
+	using namespace XYO::GrammarCompiler;
 
+	// @Statement = Symbol & WS & Alternation? & Concatenation? & WS & Assign & WS & Expression & WS & StatementEnd;
 	bool isStatement(Parser &parser, Token *token, int level) {
 		Token *node;
-		if (!parser.codeBegin(node, TokenType::Statement, level)) {
+		size_t position;
+		if(!parser.codeBegin(node, TokenType::Statement, level, position)) {
 			return false;
 		};
 
-		if (isSymbol(parser, node, level)) {
-
-			isWhiteSpaceOrComment(parser, node, level);
-
-			if (parser.inputIsToken("|", TokenType::Alternation, node) ||
-			    parser.inputIsToken("&", TokenType::Concatenation, node)) {
-			};
-
-			isWhiteSpaceOrComment(parser, node, level);
-
-			if (parser.inputIsToken("=", TokenType::Assign, node)) {
-
-				isWhiteSpaceOrComment(parser, node, level);
-
-				if (isExpression(parser, node, level)) {
-
-					isWhiteSpaceOrComment(parser, node, level);
-
-					if (parser.inputIsToken(";", TokenType::StatementEnd, node)) {
-						TokenList::pushToTail(token, node);
-						return true;
-					};
-				};
-			};
+		if(isSymbol(parser, node, level)&&
+			isWS(parser, node, level)&&
+			(isAlternation(parser, node, level) || true)&&
+			(isConcatenation(parser, node, level) || true)&&
+			isWS(parser, node, level)&&
+			isAssign(parser, node, level)&&
+			isWS(parser, node, level)&&
+			isExpression(parser, node, level)&&
+			isWS(parser, node, level)&&
+			isStatementEnd(parser, node, level)) {
+			parser.codeEndTrue(token, node);
+			return true;
 		};
 
-		parser.codeEndFalse(node, TokenType::Statement);
+		parser.codeEndFalse(node, TokenType::Statement, position);
 		return false;
 	};
+
 };
+

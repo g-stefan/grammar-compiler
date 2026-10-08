@@ -7,37 +7,45 @@
 #include <XYO/GrammarCompiler.Application/Code/Code.hpp>
 
 namespace XYO::GrammarCompiler::Application::Code {
+	using namespace XYO::GrammarCompiler;
 
+	static bool isNumberOneOrMore1(Parser &parser, Token *token, int level);
+
+	static bool isNumberOneOrMore1(Parser &parser, Token *token, int level) {
+		Token *node = token;
+		size_t loopPosition;
+
+		if(!(parser.inputIsBetween("0", "9", TokenType::Number, node))) {
+			return false;
+		};
+		while(!parser.input.isEof()) {
+			loopPosition = parser.inputPosition();
+			if(!(parser.inputIsBetween("0", "9", TokenType::Number, node))) {
+				break;
+			};
+			if(parser.inputPosition() == loopPosition) {
+				break;
+			};
+		};
+		return true;
+	};
+
+	// Number = ["0","9"]+;
 	bool isNumber(Parser &parser, Token *token, int level) {
-		if (parser.memoizationIsFalse(TokenType::Number)) {
+		Token *node;
+		size_t position;
+		if(!parser.codeBegin(node, TokenType::Number, level, position)) {
 			return false;
 		};
 
-		--level;
-		if (level <= 0) {
-			throw std::runtime_error("parser-stack-overflow");
-		};
-
-		// ---
-
-		if ((parser.input >= '0') && (parser.input <= '9')) {
-			Token *node = TokenList::newNode();
-			node->type = TokenType::Number;
-			node->value += parser.input;
-
-			while (parser.input.read()) {
-				if (((parser.input >= '0') && (parser.input <= '9'))) {
-					token->value += parser.input;
-					continue;
-				};
-				break;
-			};
-
-			TokenList::pushToTail(token, node);
+		if(isNumberOneOrMore1(parser, node, level)) {
+			parser.codeEndTrue(token, node);
 			return true;
 		};
 
-		parser.memoizationSetFalse(TokenType::Number);
+		parser.codeEndFalse(node, TokenType::Number, position);
 		return false;
 	};
+
 };
+

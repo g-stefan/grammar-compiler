@@ -7,23 +7,47 @@
 #include <XYO/GrammarCompiler.Application/Code/Code.hpp>
 
 namespace XYO::GrammarCompiler::Application::Code {
+	using namespace XYO::GrammarCompiler;
 
+	static bool isCommentOneOrMore1(Parser &parser, Token *token, int level);
+
+	static bool isCommentOneOrMore1(Parser &parser, Token *token, int level) {
+		Token *node = token;
+		size_t loopPosition;
+
+		if(!((isLineComment(parser, node, level)||
+			isMultilineComment(parser, node, level)))) {
+			return false;
+		};
+		while(!parser.input.isEof()) {
+			loopPosition = parser.inputPosition();
+			if(!((isLineComment(parser, node, level)||
+			isMultilineComment(parser, node, level)))) {
+				break;
+			};
+			if(parser.inputPosition() == loopPosition) {
+				break;
+			};
+		};
+		return true;
+	};
+
+	// Comment = (LineComment | MultilineComment)+;
 	bool isComment(Parser &parser, Token *token, int level) {
 		Token *node;
-		if (!parser.codeBegin(node, TokenType::Comment, level)) {
+		size_t position;
+		if(!parser.codeBegin(node, TokenType::Comment, level, position)) {
 			return false;
 		};
 
-		if (isLineComment(parser, node, level) || isMultilineComment(parser, node, level)) {
-			while (isLineComment(parser, node, level) || isMultilineComment(parser, node, level)) {
-				//
-			};
-			TokenList::pushToTail(token, node);
+		if(isCommentOneOrMore1(parser, node, level)) {
+			parser.codeEndTrue(token, node);
 			return true;
 		};
 
-		parser.codeEndFalse(node, TokenType::Comment);
+		parser.codeEndFalse(node, TokenType::Comment, position);
 		return false;
 	};
 
 };
+

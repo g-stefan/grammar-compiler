@@ -7,20 +7,24 @@
 #include <XYO/GrammarCompiler.Application/Code/Code.hpp>
 
 namespace XYO::GrammarCompiler::Application::Code {
+	using namespace XYO::GrammarCompiler;
 
+	// BOM = "\xEF\xBB\xBF";
 	bool isBOM(Parser &parser, Token *token, int level) {
 		Token *node;
-		if (!parser.codeBegin(node, TokenType::BOM, level)) {
+		size_t position;
+		if(!parser.codeBegin(node, TokenType::BOM, level, position)) {
 			return false;
 		};
 
-		if (parser.inputIsToken("\xEF\xBB\xBF", TokenType::BOM, node)) {
+		if(parser.inputIsToken("\xEF\xBB\xBF", TokenType::BOM, node)) {
 			parser.codeEndTrue(token, node);
 			return true;
 		};
 
-		parser.codeEndFalse(node, TokenType::BOM);
+		parser.codeEndFalse(node, TokenType::BOM, position);
 		return false;
 	};
 
 };
+

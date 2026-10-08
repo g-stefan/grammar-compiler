@@ -7,34 +7,32 @@
 #include <XYO/GrammarCompiler.Application/Code/TokenType.hpp>
 
 namespace XYO::GrammarCompiler::Application::Code {
+	using namespace XYO::GrammarCompiler;
 
 #define TOKENTYPE_STR_B(X) #X
 #define TOKENTYPE_STR_A(X) TOKENTYPE_STR_B(X)
-#define TOKENTYPE_STR(name)                   \
-	case TokenType::name:                 \
-		return TOKENTYPE_STR_A(name); \
-		break
+#define TOKENTYPE_STR(name) case TokenType::name:return TOKENTYPE_STR_A(name);break
 
-	const char *getTokenTypeString(Token::Type type) {
+	const char *getTokenTypeString(Token::Type type){
 		switch (type) {
 			TOKENTYPE_STR(Unknown);
 			TOKENTYPE_STR(BOM);
 			TOKENTYPE_STR(NewLine);
-			TOKENTYPE_STR(WhiteSpaceContent);
 			TOKENTYPE_STR(WhiteSpace);
 			TOKENTYPE_STR(LineComment);
-			TOKENTYPE_STR(LineCommentContent);
-			TOKENTYPE_STR(MultilineCommentContent);
 			TOKENTYPE_STR(MultilineComment);
-			TOKENTYPE_STR(WhiteSpaceOrComment);
 			TOKENTYPE_STR(Comment);
-			TOKENTYPE_STR(Number);
+			TOKENTYPE_STR(WhiteSpaceOrComment);
 			TOKENTYPE_STR(String);
+			TOKENTYPE_STR(Number);
 			TOKENTYPE_STR(Symbol);
+			TOKENTYPE_STR(Alternation);
+			TOKENTYPE_STR(Concatenation);
+			TOKENTYPE_STR(Negation);
 			TOKENTYPE_STR(Any);
-			TOKENTYPE_STR(GroupBegin);
-			TOKENTYPE_STR(GroupEnd);
-			TOKENTYPE_STR(Group);
+			TOKENTYPE_STR(ZeroOrOne);
+			TOKENTYPE_STR(ZeroOrMore);
+			TOKENTYPE_STR(OneOrMore);
 			TOKENTYPE_STR(IntervalBegin);
 			TOKENTYPE_STR(IntervalEnd);
 			TOKENTYPE_STR(IntervalSeparator);
@@ -43,20 +41,16 @@ namespace XYO::GrammarCompiler::Application::Code {
 			TOKENTYPE_STR(CountIntervalEnd);
 			TOKENTYPE_STR(CountIntervalSeparator);
 			TOKENTYPE_STR(CountInterval);
+			TOKENTYPE_STR(GroupBegin);
+			TOKENTYPE_STR(GroupEnd);
+			TOKENTYPE_STR(Group);
 			TOKENTYPE_STR(ExpressionTerm);
 			TOKENTYPE_STR(ExpressionTermExtended);
-			TOKENTYPE_STR(ExpressionEnd);
-			TOKENTYPE_STR(Alternation);
-			TOKENTYPE_STR(Concatenation);
-			TOKENTYPE_STR(Negation);
-			TOKENTYPE_STR(ZeroOrOne);
-			TOKENTYPE_STR(ZeroOrMore);
-			TOKENTYPE_STR(OneOrMore);
 			TOKENTYPE_STR(Expression);
 			TOKENTYPE_STR(Assign);
-			TOKENTYPE_STR(Statement);
 			TOKENTYPE_STR(StatementEnd);
 			TOKENTYPE_STR(WS);
+			TOKENTYPE_STR(Statement);
 		default:
 			break;
 		};
@@ -65,3 +59,4 @@ namespace XYO::GrammarCompiler::Application::Code {
 	};
 
 };
+

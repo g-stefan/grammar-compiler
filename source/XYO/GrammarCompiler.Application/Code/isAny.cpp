@@ -7,20 +7,24 @@
 #include <XYO/GrammarCompiler.Application/Code/Code.hpp>
 
 namespace XYO::GrammarCompiler::Application::Code {
+	using namespace XYO::GrammarCompiler;
 
+	// Any = ".";
 	bool isAny(Parser &parser, Token *token, int level) {
 		Token *node;
-		if (!parser.codeBegin(node, TokenType::Any, level)) {
+		size_t position;
+		if(!parser.codeBegin(node, TokenType::Any, level, position)) {
 			return false;
 		};
 
-		if (parser.inputIsToken(".", TokenType::Any, node)) {
+		if(parser.inputIsToken(".", TokenType::Any, node)) {
 			parser.codeEndTrue(token, node);
 			return true;
 		};
 
-		parser.codeEndFalse(node, TokenType::Any);
+		parser.codeEndFalse(node, TokenType::Any, position);
 		return false;
 	};
 
 };
+

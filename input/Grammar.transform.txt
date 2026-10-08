@@ -5,9 +5,53 @@
 
 Theorem/Grammar Transform
 
+The grammar compiler applies these transformations, a grammar can be written
+without them, see Compiler.not-optimized.grammar and Compiler.grammar.
+To see the result: grammar-compiler --grammar=file --output-grammar=result
+The generated code has as comments the rule as written, the optimized rule and notes.
+
 1. E = A & B | A; => E = A & B?;
 2. E = A & B | A & C; => E =  A & ( B | C );
 3. E = E & A | B; => E = B & A*;
 4. ((A)+)? => A*
 5. E = A | A & B; => E = A & B?;
 
+Alternation is ordered: A | B tries A first, B is tried only if A fails.
+A (sub)expression always gives the same result at the same position.
+
+1, 2 - Common prefix of neighbouring alternatives. Without it, A is parsed again
+       for each alternative, for nested rules the time grows exponentially.
+       Also for more alternatives and longer prefixes:
+         E = X & A & B | X & A & C | X | Y; => E = X & (A & (B | C))? | Y;
+       Only neighbouring alternatives, in A & B | C | A & D the order of
+       C and A & D is the priority, they are not changed.
+
+3 - Left recursion. E = E & A would call E again at the same position,
+    the parser stops with parser-stack-overflow. Rewritten for any number
+    of alternatives:
+      E = E & A1 | E & A2 | B1 | B2; => E = (B1 | B2) & (A1 | A2)*;
+    Indirect left recursion (A = B & ...; B = A & ...;) is an error.
+
+4 - Repetitions, with the same meaning:
+      (A?)? => A?     (A*)? => A*     (A+)? => A*
+      (A?)* => A*     (A*)* => A*     (A+)* => A*
+      (A?)+ => A*     (A*)+ => A*     (A+)+ => A+
+      A{0,1} => A?    A{1,1} => A     A{0} => A*     A{1} => A+
+
+5 - Longest match. Here the transformation changes what is matched:
+    A | A & B always matches A, A & B is never tried, because A matches first.
+    The intent is to match A & B when possible, so the shorter alternative
+    is moved last: A & (B | "") => A & B?
+    It is applied also to strings, where one is the beginning of the next:
+      E = "a" | "ab" | "abc"; => E = "a" & ("b" & "c"?)?;
+    The grammar compiler prints a note for each rule 5 transformation,
+    the note is also in the generated code.
+
+Warnings, the alternatives are removed:
+  - an alternative after one that always matches:
+      E = A? | B;  B is never tried
+  - the same alternative again, or a string that begins with a previous string,
+    when they are not neighbours:
+      E = "a" | "b" | "ab";  "ab" is never tried
+Warning: a repetition of an expression that can match nothing, like (!A)*,
+the repetition stops when nothing is consumed.

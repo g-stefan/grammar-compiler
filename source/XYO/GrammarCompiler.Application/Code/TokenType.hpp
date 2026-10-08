@@ -7,32 +7,33 @@
 #ifndef XYO_GRAMMARCOMPILER_APPLICATION_CODE_TOKENTYPE_HPP
 #define XYO_GRAMMARCOMPILER_APPLICATION_CODE_TOKENTYPE_HPP
 
-#ifndef XYO_GRAMMARCOMPILER_TOKEN_HPP
-#	include <XYO/GrammarCompiler/Token.hpp>
+#ifndef XYO_GRAMMARCOMPILER_HPP
+#	include <XYO/GrammarCompiler.hpp>
 #endif
 
 namespace XYO::GrammarCompiler::Application::Code {
+	using namespace XYO::GrammarCompiler;
 
 	namespace TokenType {
 		enum : Token::Type {
 			Unknown = 0,
 			BOM,
 			NewLine,
-			WhiteSpaceContent,
 			WhiteSpace,
 			LineComment,
-			LineCommentContent,
-			MultilineCommentContent,
 			MultilineComment,
-			WhiteSpaceOrComment,
 			Comment,
-			Number,
+			WhiteSpaceOrComment,
 			String,
+			Number,
 			Symbol,
+			Alternation,
+			Concatenation,
+			Negation,
 			Any,
-			GroupBegin,
-			GroupEnd,
-			Group,
+			ZeroOrOne,
+			ZeroOrMore,
+			OneOrMore,
 			IntervalBegin,
 			IntervalEnd,
 			IntervalSeparator,
@@ -41,20 +42,16 @@ namespace XYO::GrammarCompiler::Application::Code {
 			CountIntervalEnd,
 			CountIntervalSeparator,
 			CountInterval,
+			GroupBegin,
+			GroupEnd,
+			Group,
 			ExpressionTerm,
 			ExpressionTermExtended,
-			ExpressionEnd,
-			Alternation,
-			Concatenation,
-			Negation,
-			ZeroOrOne,
-			ZeroOrMore,
-			OneOrMore,
 			Expression,
 			Assign,
-			Statement,
 			StatementEnd,
-			WS
+			WS,
+			Statement
 		};
 	};
 
@@ -62,3 +59,4 @@ namespace XYO::GrammarCompiler::Application::Code {
 };
 
 #endif
+

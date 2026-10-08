@@ -13,20 +13,19 @@
 
 namespace XYO::GrammarCompiler {
 
+	// The whole input is kept in memory, backtracking is done by restoring a position.
 	class Input {
 			XYO_PLATFORM_DISALLOW_COPY_ASSIGN_MOVE(Input);
 
 		public:
-			TPointer<IRead> iRead;
-			char *inputStack;
-			size_t stackSize;
-			size_t stackIndex;
+			String content;
+			const char *buffer;
+			size_t size;
+			size_t position;
+			size_t farthestPosition;
 			char input;
-			bool eof;
 
-			size_t fileIndex;
-
-			XYO_GRAMMARCOMPILER_EXPORT Input(size_t stackSize_ = 16384);
+			XYO_GRAMMARCOMPILER_EXPORT Input();
 			XYO_GRAMMARCOMPILER_EXPORT ~Input();
 
 			inline operator char() {
@@ -37,17 +36,44 @@ namespace XYO::GrammarCompiler {
 				return input;
 			};
 
-			inline Input &operator=(char value) {
-				input = value;
-				return *this;
+			XYO_GRAMMARCOMPILER_EXPORT void setContent(const String &value);
+			XYO_GRAMMARCOMPILER_EXPORT size_t getLineNumber(size_t position_);
+
+			inline bool read() {
+				if (position < size) {
+					++position;
+					if (position > farthestPosition) {
+						farthestPosition = position;
+					};
+				};
+				if (position < size) {
+					input = buffer[position];
+					return true;
+				};
+				input = 0;
+				return false;
 			};
 
-			XYO_GRAMMARCOMPILER_EXPORT void setIRead(IRead *value);
+			inline bool isEof() {
+				return (position >= size);
+			};
 
-			XYO_GRAMMARCOMPILER_EXPORT bool push();
-			XYO_GRAMMARCOMPILER_EXPORT bool pop();
-			XYO_GRAMMARCOMPILER_EXPORT bool read();
-			XYO_GRAMMARCOMPILER_EXPORT bool isEof();
+			inline void setPosition(size_t value) {
+				position = value;
+				if (position < size) {
+					input = buffer[position];
+					return;
+				};
+				input = 0;
+			};
+
+			// length must not exceed the remaining input
+			inline void skip(size_t length) {
+				setPosition(position + length);
+				if (position > farthestPosition) {
+					farthestPosition = position;
+				};
+			};
 	};
 
 };

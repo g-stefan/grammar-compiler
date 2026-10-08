@@ -7,54 +7,36 @@
 #ifndef XYO_GRAMMARCOMPILER_APPLICATION_GENERATOR_HPP
 #define XYO_GRAMMARCOMPILER_APPLICATION_GENERATOR_HPP
 
-#ifndef XYO_GRAMMARCOMPILER_PARSER_HPP
-#	include <XYO/GrammarCompiler/Parser.hpp>
+#ifndef XYO_GRAMMARCOMPILER_APPLICATION_GRAMMAR_HPP
+#	include <XYO/GrammarCompiler.Application/Grammar.hpp>
 #endif
 
 namespace XYO::GrammarCompiler::Application {
 
-	class CodeInfo : public Object {
-			XYO_PLATFORM_DISALLOW_COPY_ASSIGN_MOVE(CodeInfo);
-
-		public:
-			int codeId;
-			String headerFn;
-			String headerFnIntern;
-			String codeFn;
-
-			inline CodeInfo() {
-				codeId = 0;
-			};
-
-			inline void activeConstructor() {
-				codeId = 0;
-			};
-	};
-
 	class Generator {
 		public:
-			Token *tokenList;
-			String code;
-			TAssociativeArray<String, TPointer<CodeInfo>> codeInfo;
+			GrammarNode *grammar;
+			String error;
+
+			// current rule
+			GrammarNode *rule;
+			int functionId;
+			String headerFnIntern;
+			String codeFnIntern;
 
 		public:
 			Generator();
 			~Generator();
 
 			String toString(int x);
+			String tokenType();
+			String newFunction(const char *kind, String &functionCode);
+			void endFunction(const String &functionName, String &functionCode);
+			String loopCode(const String &code, const char *indent);
 
-			String incFunctionCodeId(const String &symbol);
-			void setFunctionHeader(const String &symbol, const String &functionHeader);
-			void setFunctionHeaderIntern(const String &symbol, const String &functionHeader);
-			void setFunctionCode(const String &symbol, const String &functionCode);
+			String expression(GrammarNode *node, bool isTop);
+			String ruleCode(GrammarNode *rule_);
 
-			bool getValue(Token *symbol, Token *token);
-			bool getTermValue(Token *symbol, Token *token);
-			bool expression(Token *symbol, Token *token);
-
-			String getSymbol(const String &symbol);
-
-			bool prepareCode();
 			bool saveCode(const String &sourceNamespace,
 			              const String &sourceIncludeGuard,
 			              const String &sourceIncludePath,

@@ -8,11 +8,13 @@
 #include <XYO/GrammarCompiler.Application/Code/ParserTable.hpp>
 
 namespace XYO::GrammarCompiler::Application::Code {
+	using namespace XYO::GrammarCompiler;
 
 	ParserProcessToken parserTable[] = {
-	    isStatement,
-	    isWhiteSpaceOrComment,
-	    // End
-	    nullptr};
+		isStatement,
+		isWhiteSpaceOrComment,
+		// End
+		nullptr};
 
 };
+

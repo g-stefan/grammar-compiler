@@ -6,30 +6,19 @@
 
 #include <XYO/GrammarCompiler.Application/Debug.hpp>
 #include <XYO/GrammarCompiler.Application/Code/TokenType.hpp>
-#include <XYO/GrammarCompiler.Application/TokenTypeExtra.hpp>
 
 namespace XYO::GrammarCompiler::Application::Debug {
 
 	using namespace XYO::GrammarCompiler::Application::Code;
 
 	void inputPrint(Input &input) {
-		printf("Hex: %02X", input.input);
-		int index;
-		for (index = 0; index < input.stackIndex; ++index) {
-			printf("%02X", input.inputStack[index]);
-		};
-		printf("\r\n");
-
-		printf("CHR: %c", input.input);
-
-		for (index = 0; index < input.stackIndex; ++index) {
-			printf("%c", input.inputStack[index]);
-		};
-		printf("\r\n");
+		printf("Position: %zu / %zu, line %zu\r\n", input.position, input.size, input.getLineNumber(input.position));
+		printf("Hex: %02X\r\n", static_cast<uint8_t>(input.input));
+		printf("CHR: %c\r\n", input.input);
 	};
 
 	void tokenPrintType(Token *token) {
-		const char *tokenName = Code::getTokenTypeExtraString(token->type);
+		const char *tokenName = Code::getTokenTypeString(token->type);
 		printf("%s", tokenName);
 	};
 

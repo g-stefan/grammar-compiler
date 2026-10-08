@@ -7,36 +7,49 @@
 #include <XYO/GrammarCompiler.Application/Code/Code.hpp>
 
 namespace XYO::GrammarCompiler::Application::Code {
+	using namespace XYO::GrammarCompiler;
 
+	static bool isSymbolZeroOrMore1(Parser &parser, Token *token, int level);
+
+	static bool isSymbolZeroOrMore1(Parser &parser, Token *token, int level) {
+		Token *node = token;
+		size_t loopPosition;
+
+		while(!parser.input.isEof()) {
+			loopPosition = parser.inputPosition();
+			if(!((parser.inputIsToken("_", TokenType::Symbol, node)||
+			parser.inputIsBetween("A", "Z", TokenType::Symbol, node)||
+			parser.inputIsBetween("a", "z", TokenType::Symbol, node)||
+			parser.inputIsBetween("0", "9", TokenType::Symbol, node)))) {
+				break;
+			};
+			if(parser.inputPosition() == loopPosition) {
+				break;
+			};
+		};
+		return true;
+	};
+
+	// Symbol = "@"? & ("_" | ["A","Z"] | ["a","z"]) & ("_" | ["A","Z"] | ["a","z"] | ["0","9"])*;
 	bool isSymbol(Parser &parser, Token *token, int level) {
-		if (parser.memoizationIsFalse(TokenType::Symbol)) {
+		Token *node;
+		size_t position;
+		if(!parser.codeBegin(node, TokenType::Symbol, level, position)) {
 			return false;
 		};
 
-		--level;
-		if (level <= 0) {
-			throw std::runtime_error("parser-stack-overflow");
-		};
-
-		// ---
-
-		if (parser.input == '@' || parser.input == '_' || ((parser.input >= 'A') && (parser.input <= 'Z')) || ((parser.input >= 'a') && (parser.input <= 'z'))) {
-			Token *node = TokenList::newNode();
-			node->type = TokenType::Symbol;
-			node->value += parser.input;
-			while (parser.input.read()) {
-				if (parser.input == '_' || parser.input == '-' || ((parser.input >= 'A') && (parser.input <= 'Z')) || ((parser.input >= 'a') && (parser.input <= 'z')) || ((parser.input >= '0') && (parser.input <= '9'))) {
-					node->value += parser.input;
-				} else {
-					TokenList::pushToTail(token, node);
-					return true;
-				};
-			};
-			TokenList::pushToTail(token, node);
+		if((parser.inputIsToken("@", TokenType::Symbol, node) || true)&&
+			(parser.inputIsToken("_", TokenType::Symbol, node)||
+			parser.inputIsBetween("A", "Z", TokenType::Symbol, node)||
+			parser.inputIsBetween("a", "z", TokenType::Symbol, node))&&
+			isSymbolZeroOrMore1(parser, node, level)) {
+			parser.codeEndTrue(token, node);
 			return true;
 		};
 
-		parser.memoizationSetFalse(TokenType::Symbol);
+		parser.codeEndFalse(node, TokenType::Symbol, position);
 		return false;
 	};
+
 };
+

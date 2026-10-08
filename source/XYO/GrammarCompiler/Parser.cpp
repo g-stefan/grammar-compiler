@@ -8,7 +8,77 @@
 
 namespace XYO::GrammarCompiler {
 
-	Parser::Parser(size_t inputStackSize_) : input(inputStackSize_) {
+	ParserMemoization::ParserMemoization() {
+		table = nullptr;
+		capacity = 0;
+		count = 0;
+	};
+
+	ParserMemoization::~ParserMemoization() {
+		delete[] table;
+	};
+
+	bool ParserMemoization::has(size_t position, Token::Type type) {
+		if (count == 0) {
+			return false;
+		};
+		uint64_t value = key(position, type);
+		size_t mask = capacity - 1;
+		size_t index;
+		for (index = hash(value, mask); table[index] != 0; index = (index + 1) & mask) {
+			if (table[index] == value) {
+				return true;
+			};
+		};
+		return false;
+	};
+
+	void ParserMemoization::set(size_t position, Token::Type type) {
+		if ((count + 1) * 2 > capacity) {
+			grow();
+		};
+		uint64_t value = key(position, type);
+		size_t mask = capacity - 1;
+		size_t index;
+		for (index = hash(value, mask); table[index] != 0; index = (index + 1) & mask) {
+			if (table[index] == value) {
+				return;
+			};
+		};
+		table[index] = value;
+		++count;
+	};
+
+	void ParserMemoization::empty() {
+		delete[] table;
+		table = nullptr;
+		capacity = 0;
+		count = 0;
+	};
+
+	void ParserMemoization::grow() {
+		uint64_t *oldTable = table;
+		size_t oldCapacity = capacity;
+
+		capacity = (capacity == 0) ? 1024 : capacity * 2;
+		table = new uint64_t[capacity]();
+
+		size_t mask = capacity - 1;
+		size_t k;
+		size_t index;
+		for (k = 0; k < oldCapacity; ++k) {
+			if (oldTable[k] == 0) {
+				continue;
+			};
+			for (index = hash(oldTable[k], mask); table[index] != 0; index = (index + 1) & mask) {
+			};
+			table[index] = oldTable[k];
+		};
+
+		delete[] oldTable;
+	};
+
+	Parser::Parser() {
 		tokenList = TokenList::newNode();
 	};
 
@@ -17,20 +87,25 @@ namespace XYO::GrammarCompiler {
 	};
 
 	bool Parser::parse(ParserProcessToken *parseTable) {
-
 		if (input.isEof()) {
 			return false;
 		};
 
-		if (!input.read()) {
-			return false;
-		};
-
 		while (!input.isEof()) {
+			size_t position = input.position;
+			Token *tail = tokenList->childTail;
 			ParserProcessToken *processToken;
 			for (processToken = parseTable; *processToken != nullptr; ++processToken) {
 				if ((*processToken)(*this, tokenList, 1024)) {
-					break;
+					if (input.position != position) {
+						break;
+					};
+					// matched without consuming input, discard and try next
+					while (tokenList->childTail != tail) {
+						Token *node = tokenList->childTail;
+						TokenList::extract(tokenList, node);
+						TokenList::destructor(node);
+					};
 				};
 			};
 			if (*processToken == nullptr) {
@@ -41,102 +116,44 @@ namespace XYO::GrammarCompiler {
 		return input.isEof();
 	};
 
+	bool Parser::parseContent(const String &content, ParserProcessToken *parseTable) {
+		memoization.empty();
+		input.setContent(content);
+		return parse(parseTable);
+	};
+
 	bool Parser::parseFile(const char *fileName, ParserProcessToken *parseTable) {
-		File file;
-
-		input.setIRead(&file);
-		if (file.openRead(fileName)) {
-			if (parse(parseTable)) {
-				input.setIRead(nullptr);
-				file.close();
-				return true;
-			};
-			file.close();
+		String content;
+		if (!Shell::fileGetContents(fileName, content)) {
+			return false;
 		};
-
-		input.setIRead(nullptr);
-		return false;
+		return parseContent(content, parseTable);
 	};
 
 	bool Parser::inputIs(const char *value) {
-		int k;
-		for (k = 0; value[k] != 0; ++k) {
-			if (input == value[k]) {
-				if (input.read()) {
-					continue;
-				};
-				++k;
-			};
-			break;
+		size_t length = strlen(value);
+		if (input.size - input.position < length) {
+			return false;
 		};
-		if (value[k] == 0) {
-			return true;
+		if (memcmp(input.buffer + input.position, value, length) != 0) {
+			return false;
 		};
-		for (--k; k >= 0; --k) {
-			input.push();
-			input = value[k];
-		};
-		return false;
-	};
-
-	bool Parser::inputIsLessThanOrEqualTo(const char *value, String &out) {
-		out = "";
-		int k;
-		for (k = 0; value[k] != 0; ++k) {
-			if (input <= value[k]) {
-				out += input;
-				if (input.read()) {
-					continue;
-				};
-				++k;
-			};
-			break;
-		};
-		if (value[k] == 0) {
-			return true;
-		};
-		for (--k; k >= 0; --k) {
-			input.push();
-			input = value[k];
-		};
-		return false;
-	};
-
-	bool Parser::inputIsGreaterThanOrEqualTo(const char *value, String &out) {
-		out = "";
-		int k;
-		for (k = 0; value[k] != 0; ++k) {
-			if (input >= value[k]) {
-				out += input;
-				if (input.read()) {
-					continue;
-				};
-				++k;
-			};
-			break;
-		};
-		if (value[k] == 0) {
-			return true;
-		};
-		for (--k; k >= 0; --k) {
-			input.push();
-			input = value[k];
-		};
-		return false;
+		input.skip(length);
+		return true;
 	};
 
 	bool Parser::inputIsToken(const char *value, Token::Type type, Token *token) {
 		if (inputIs(value)) {
-			Token *node = TokenList::newNode();
-			node->type = type;
-			node->value = value;
-			TokenList::pushToTail(token, node);
+			tokenAddValue(token, type, value, strlen(value));
 			return true;
 		};
 		return false;
 	};
 
 	bool Parser::inputIsZeroOrMoreTokenValue(const char *value, Token::Type type, Token *token) {
+		if (*value == 0) {
+			return true;
+		};
 		while (inputIs(value)) {
 			token->value += value;
 		};
@@ -154,111 +171,103 @@ namespace XYO::GrammarCompiler {
 		return false;
 	};
 
-	void Parser::inputRestore(const char *value) {
-		int k = strlen(value);
-		for (--k; k >= 0; --k) {
-			input.push();
-			input = value[k];
-		};
-	};
-
-	void Parser::inputRestore(Token *token) {
-		Token *scan;
-		for (scan = TokenList::end(token); scan != nullptr; scan = TokenList::predecessor(scan)) {
-			inputRestore(scan->value.value());
-		};
-	};
-
 	bool Parser::inputIsTokenThenSet(ParserProcessToken parserProcessToken, Token::Type type, Token *token, int level) {
+		size_t position = input.position;
 		Token *node = TokenList::newNode();
 		node->type = type;
 		if (parserProcessToken(*this, node, level)) {
 			TokenList::pushToTail(token, node);
 			return true;
 		};
-		inputRestore(node);
+		input.setPosition(position);
 		TokenList::destructor(node);
 		return false;
 	};
 
+	// Each input byte must be between the corresponding bytes of a and b.
 	bool Parser::inputIsBetween(const char *a, const char *b, Token::Type type, Token *token) {
-		String value;
-		if (inputIsGreaterThanOrEqualTo(a, value)) {
-			if (value <= b) {
-				Token *node = TokenList::newNode();
-				node->type = type;
-				node->value = value;
-				TokenList::pushToTail(token, node);
-				return true;
-			};
-			inputRestore(value.value());
+		size_t length = strlen(a);
+		if ((length == 0) || (strlen(b) != length)) {
+			return false;
 		};
-		return false;
+		if (input.size - input.position < length) {
+			return false;
+		};
+		const uint8_t *value = reinterpret_cast<const uint8_t *>(input.buffer + input.position);
+		size_t k;
+		for (k = 0; k < length; ++k) {
+			if ((value[k] < static_cast<uint8_t>(a[k])) || (value[k] > static_cast<uint8_t>(b[k]))) {
+				return false;
+			};
+		};
+		tokenAddValue(token, type, input.buffer + input.position, length);
+		input.skip(length);
+		return true;
 	};
 
 	bool Parser::inputIsTokenAny(Token::Type type, Token *token) {
 		if (input.isEof()) {
 			return false;
 		};
-		Token *node = TokenList::newNode();
-		node->type = type;
-		char buf[2];
-		buf[0] = input;
-		buf[1] = 0;
-		node->value = buf;
-		TokenList::pushToTail(token, node);
-
-		input.read();
+		tokenAddValue(token, type, input.buffer + input.position, 1);
+		input.skip(1);
 		return true;
 	};
 
-	void Parser::tokenChildToValue(Token *token) {
-		Token *scan;
-		Token *node;
-		Token *index;
-
-		for (index = token->childHead; index != nullptr; index = index->next) {
-			if (index->type == token->type) {
-				break;
-			};
-		};
-		if (index == nullptr) {
-			return;
-		};
-
-		scan = index->next;
-		while (scan != nullptr) {
-			if (scan->type == index->type) {
-				index->value += scan->value;
-				node = scan;
-				scan = scan->next;
-				TokenList::extract(node->parent, node);
-				TokenList::destructor(node);
-				continue;
-			};
-			for (index = scan; index != nullptr; index = index->next) {
-				if (index->type == token->type) {
-					break;
-				};
-			};
-			if (index == nullptr) {
+	// Same result as tokenChildToValue, without allocating a node for each consecutive value.
+	void Parser::tokenAddValue(Token *token, Token::Type type, const char *value, size_t length) {
+		Token *tail = token->childTail;
+		if (tail != nullptr) {
+			if ((tail->type == type) && (type == token->type) && (tail->childHead == nullptr)) {
+				tail->value.concatenate(value, length);
 				return;
 			};
-			scan = index->next;
+		};
+		Token *node = TokenList::newNode();
+		node->type = type;
+		node->value.set(value, length);
+		TokenList::pushToTail(token, node);
+	};
+
+	// Merge consecutive leaf children of the same type as the token,
+	// if only one remains, move its value to the token.
+	void Parser::tokenChildToValue(Token *token) {
+		Token *scan;
+		Token *next;
+		Token *index = nullptr;
+
+		for (scan = token->childHead; scan != nullptr; scan = next) {
+			next = scan->next;
+			if ((scan->type != token->type) || (scan->childHead != nullptr)) {
+				index = nullptr;
+				continue;
+			};
+			if (index == nullptr) {
+				index = scan;
+				continue;
+			};
+			index->value += scan->value;
+			TokenList::extract(token, scan);
+			TokenList::destructor(scan);
 		};
 
-		if (token->childHead->next == nullptr) {
-			node = token->childHead;
-			if (node->type == token->type) {
-				token->value += node->value;
-				TokenList::extract(node->parent, node);
-				TokenList::destructor(node);
-			};
+		scan = token->childHead;
+		if (scan == nullptr) {
+			return;
+		};
+		if (scan->next != nullptr) {
+			return;
+		};
+		if ((scan->type == token->type) && (scan->childHead == nullptr)) {
+			token->value += scan->value;
+			TokenList::extract(token, scan);
+			TokenList::destructor(scan);
 		};
 	};
 
-	bool Parser::codeBegin(Token *&node, Token::Type type, int &level) {
-		if (memoizationIsFalse(type)) {
+	bool Parser::codeBegin(Token *&node, Token::Type type, int &level, size_t &position) {
+		position = input.position;
+		if (memoization.has(position, type)) {
 			return false;
 		};
 
@@ -278,42 +287,10 @@ namespace XYO::GrammarCompiler {
 		TokenList::pushToTail(token, node);
 	};
 
-	void Parser::codeEndFalse(Token *node, Token::Type type) {
-		inputRestore(node);
+	void Parser::codeEndFalse(Token *node, Token::Type type, size_t position) {
+		input.setPosition(position);
 		TokenList::destructor(node);
-		memoizationSetFalse(type);
+		memoization.set(position, type);
 	};
 
-	bool Parser::memoizationIsFalse(Token::Type type) {
-		TRedBlackTree<ParserMemoization, bool>::Node *node;
-		ParserMemoization info;
-
-		info.index = input.fileIndex;
-		info.type = type;
-
-		node = memoization.find(info);
-		if (node) {
-			if (!node->value) {
-				return true;
-			};
-		};
-
-		return false;
-	};
-
-	void Parser::memoizationSetFalse(Token::Type type) {
-		TRedBlackTree<ParserMemoization, bool>::Node *node;
-		ParserMemoization info;
-
-		info.index = input.fileIndex;
-		info.type = type;
-
-		node = memoization.find(info);
-		if (node) {
-			node->value = false;
-			return;
-		};
-
-		memoization.insert(info, false);
-	};
 };

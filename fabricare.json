@@ -1,5 +1,6 @@
 {
 	"solution": {
+		"namespace" : "xyo",
 		"name": "grammar-compiler",
 		"type": "xyo-cpp",
 		"projects": [

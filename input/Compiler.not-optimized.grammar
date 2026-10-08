@@ -23,18 +23,22 @@ Grammar used by Grammar Compiler
 |= Add alternation to existing symbol
 &= Add concatenation to existing symbol
 .* - Read until end of input
+@Statement - Statement is selected for parsing table
+
+Same grammar as Compiler.grammar, written without the optimizations,
+the grammar compiler applies them, see Grammar.transform.txt
 
 */
 BOM = "\xEF\xBB\xBF";
 NewLine = "\r\n" | "\n";
 WhiteSpace = (" " | "\t" | NewLine | BOM)+;
 LineComment = ( "//" | "#" ) & (!NewLine & .)* & NewLine;
-MultilineComment = "/*" & (!"*/" & .)* & "*/";
+MultilineComment = "/*" & (!"*/" & (NewLine | .))* & "*/";
 Comment = (LineComment | MultilineComment)+;
-WhiteSpaceOrComment = (WhiteSpace | Comment)+;
+@WhiteSpaceOrComment = (WhiteSpace | Comment)+;
 String = "\""  & ( !"\"" & ( ("\\" & . ) | . ) )* & "\"";
 Number = ["0","9"]+;
-Symbol = ("_" | ["a","z"] | ["A","Z"]) & ("_" | ["A","Z"] | ["a","z"] | ["0","9"])*;
+Symbol = "@"? & ("_" | ["A","Z"] | ["a","z"]) &("_" | ["A","Z"] | ["a","z"] | ["0","9"])*;
 Alternation = "|";
 Concatenation = "&";
 Negation = "!";
@@ -72,4 +76,4 @@ Expression =
 Assign = "=";
 StatementEnd = ";";
 WS = (WhiteSpaceOrComment)?;
-Statement = Symbol & WS & (Alternation)? & (Concatenation)? & WS & Assign & WS & Expression & WS & StatementEnd;
+@Statement = Symbol & WS & (Alternation)? & (Concatenation)? & WS & Assign & WS & Expression & WS & StatementEnd;

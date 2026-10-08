@@ -7,12 +7,15 @@
 #ifndef XYO_GRAMMARCOMPILER_APPLICATION_CODE_PARSERTABLE_HPP
 #define XYO_GRAMMARCOMPILER_APPLICATION_CODE_PARSERTABLE_HPP
 
-#ifndef XYO_GRAMMARCOMPILER_PARSER_HPP
-#	include <XYO/GrammarCompiler/Parser.hpp>
+#ifndef XYO_GRAMMARCOMPILER_HPP
+#	include <XYO/GrammarCompiler.hpp>
 #endif
 
 namespace XYO::GrammarCompiler::Application::Code {
+	using namespace XYO::GrammarCompiler;
+
 	extern ParserProcessToken parserTable[];
 };
 
 #endif
+

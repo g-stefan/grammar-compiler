@@ -7,26 +7,25 @@
 #include <XYO/GrammarCompiler.Application/Code/Code.hpp>
 
 namespace XYO::GrammarCompiler::Application::Code {
+	using namespace XYO::GrammarCompiler;
 
+	// NewLine = "\r\n" | "\n";
 	bool isNewLine(Parser &parser, Token *token, int level) {
-		if (parser.memoizationIsFalse(TokenType::NewLine)) {
+		Token *node;
+		size_t position;
+		if(!parser.codeBegin(node, TokenType::NewLine, level, position)) {
 			return false;
 		};
 
-		--level;
-		if (level <= 0) {
-			throw std::runtime_error("parser-stack-overflow");
-		};
-
-		// ---
-
-		if (parser.inputIsToken("\r\n", TokenType::NewLine, token) ||
-		    parser.inputIsToken("\n", TokenType::NewLine, token)) {
+		if(parser.inputIsToken("\r\n", TokenType::NewLine, node)||
+			parser.inputIsToken("\n", TokenType::NewLine, node)) {
+			parser.codeEndTrue(token, node);
 			return true;
 		};
 
-		parser.memoizationSetFalse(TokenType::NewLine);
+		parser.codeEndFalse(node, TokenType::NewLine, position);
 		return false;
 	};
 
 };
+

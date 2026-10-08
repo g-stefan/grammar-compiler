@@ -5,10 +5,10 @@
 // SPDX-License-Identifier: MIT
 
 #include <XYO/GrammarCompiler.Application/Application.hpp>
+#include <XYO/GrammarCompiler.Application/Grammar.hpp>
 #include <XYO/GrammarCompiler.Application/Transformer.hpp>
 #include <XYO/GrammarCompiler.Application/Generator.hpp>
 #include <XYO/GrammarCompiler.Application/Code/ParserTable.hpp>
-#include <XYO/GrammarCompiler.Application/Debug.hpp>
 
 #include <XYO/GrammarCompiler.Application/Copyright.hpp>
 #include <XYO/GrammarCompiler.Application/License.hpp>
@@ -26,7 +26,16 @@ namespace XYO::GrammarCompiler::Application {
 		       "    --help                         this info\n"
 		       "    --usage                        this info\n"
 		       "    --license                      show license\n"
-		       "    --version                      show version\n");
+		       "    --version                      show version\n"
+		       "    --grammar=file                 grammar to compile\n"
+		       "    --source-header=file           text at the beginning of each generated file\n"
+		       "    --source-namespace=name        namespace of the generated code\n"
+		       "    --source-include-guard=name    prefix of the include guards\n"
+		       "    --source-include-path=path     include path of the generated files\n"
+		       "    --output-folder=path           where to write the generated files\n"
+		       "    --output-grammar=file          write the optimized grammar,\n"
+		       "                                   without --source-namespace no code is generated\n"
+		       "    @file                          read options from file\n");
 		printf("\n");
 	};
 
@@ -42,6 +51,7 @@ namespace XYO::GrammarCompiler::Application {
 		String::initMemory();
 		TDynamicArray<String>::initMemory();
 		Parser::initMemory();
+		GrammarNodeList::initMemory();
 	};
 
 	int Application::main(int cmdN, char *cmdS[]) {
@@ -57,6 +67,7 @@ namespace XYO::GrammarCompiler::Application {
 		String sourceIncludePath;
 		String sourceNamespace;
 		String outputFolder;
+		String outputGrammarFile;
 
 		for (i = 1; i < cmdN; ++i) {
 			if (StringCore::beginWith(cmdS[i], "@")) {
@@ -124,6 +135,10 @@ namespace XYO::GrammarCompiler::Application {
 					outputFolder = optValue;
 					continue;
 				};
+				if (opt == "output-grammar") {
+					outputGrammarFile = optValue;
+					continue;
+				};
 				continue;
 			};
 		};
@@ -135,39 +150,77 @@ namespace XYO::GrammarCompiler::Application {
 			return 1;
 		};
 
-		if (sourceHeaderFile.length() == 0) {
-			printf("Error: No source header file specified!\r\n");
-			return 1;
-		};
+		bool generateCode = (sourceNamespace.length() > 0) || (outputGrammarFile.length() == 0);
 
-		if (sourceNamespace.length() == 0) {
-			printf("Error: No source namespace specified!\r\n");
-			return 1;
+		if (generateCode) {
+			if (sourceHeaderFile.length() == 0) {
+				printf("Error: No source header file specified!\r\n");
+				return 1;
+			};
+
+			if (sourceNamespace.length() == 0) {
+				printf("Error: No source namespace specified!\r\n");
+				return 1;
+			};
 		};
 
 		// ---
 
+		if (!Shell::fileExists(grammarFile)) {
+			printf("Error: Grammar file not found - %s\r\n", grammarFile.value());
+			return 1;
+		};
+
 		Parser parser;
-		Generator generator;
-
-		if (!parser.parseFile(grammarFile, Code::parserTable)) {
-			printf("Error: Syntax error line: %zd!\r\n", Transformer::getLineCount(parser.tokenList));
+		try {
+			if (!parser.parseFile(grammarFile, Code::parserTable)) {
+				printf("Error: Syntax error line: %zu!\r\n", parser.getErrorLine());
+				return 1;
+			};
+		} catch (const std::exception &e) {
+			// parser-stack-overflow, nesting too deep
+			printf("Error: %s line: %zu!\r\n", e.what(), parser.getErrorLine());
 			return 1;
 		};
 
-		generator.tokenList = parser.tokenList;
-		Transformer::process(generator.tokenList);
+		String error;
+		String warning;
+		GrammarNode *grammar = nullptr;
+		bool isOk = Grammar::build(parser.tokenList, grammar, error) &&
+		            Grammar::validate(grammar, error, warning) &&
+		            Transformer::process(grammar, error, warning);
 
-		if (!generator.saveCode(sourceNamespace,
-		                        sourceIncludeGuard,
-		                        sourceIncludePath,
-		                        sourceHeaderFile,
-		                        outputFolder)) {
-			printf("Error: Saving code!\r\n");
+		if (warning.length() > 0) {
+			printf("%s", warning.value());
+		};
+
+		if (isOk && (outputGrammarFile.length() > 0)) {
+			if (!Shell::filePutContents(outputGrammarFile, Grammar::toStringGrammar(grammar))) {
+				error = "Unable to write file ";
+				error << outputGrammarFile;
+				isOk = false;
+			};
+		};
+
+		if (isOk && generateCode) {
+			Generator generator;
+			generator.grammar = grammar;
+			isOk = generator.saveCode(sourceNamespace,
+			                          sourceIncludeGuard,
+			                          sourceIncludePath,
+			                          sourceHeaderFile,
+			                          outputFolder);
+			error = generator.error;
+		};
+
+		Grammar::release(grammar);
+
+		if (!isOk) {
+			printf("Error: %s\r\n", (error.length() > 0) ? error.value() : "Saving code!");
 			return 1;
 		};
 
-		return 0L;
+		return 0;
 	};
 };
 

@@ -7,50 +7,78 @@
 #include <XYO/GrammarCompiler.Application/Code/Code.hpp>
 
 namespace XYO::GrammarCompiler::Application::Code {
+	using namespace XYO::GrammarCompiler;
 
-	bool isMultilineComment(Parser &parser, Token *token, int level) {
-		if (parser.memoizationIsFalse(TokenType::MultilineComment)) {
+	static bool isMultilineCommentZeroOrMore1(Parser &parser, Token *token, int level);
+	static bool isMultilineCommentSequence2(Parser &parser, Token *token, int level);
+	static bool isMultilineCommentNot3(Parser &parser, Token *token, int level);
+
+	static bool isMultilineCommentNot3(Parser &parser, Token *token, int level) {
+		size_t position = parser.inputPosition();
+		Token *node = TokenList::newNode();
+
+		if(parser.inputIsToken("*/", TokenType::MultilineComment, node)) {
+			parser.inputRestore(position);
+			TokenList::destructor(node);
 			return false;
 		};
 
-		--level;
-		if (level <= 0) {
-			throw std::runtime_error("parser-stack-overflow");
-		};
+		TokenList::destructor(node);
+		return true;
+	};
 
-		// ---
+	static bool isMultilineCommentSequence2(Parser &parser, Token *token, int level) {
+		size_t position = parser.inputPosition();
+		Token *node = TokenList::newNode();
+		node->type = TokenType::MultilineComment;
 
-		if (parser.inputIsToken("/*", TokenType::MultilineComment, token)) {
-			Token *node = TokenList::newNode();
-			node->type = TokenType::MultilineCommentContent;
-
-			while (!parser.inputIs("*/")) {
-				if (parser.input.isEof()) {
-					TokenList::pushToTail(token, node);
-					return true;
-				};
-
-				if (isNewLine(parser, node, level)) {
-					TokenList::pushToTail(token, node);
-
-					node = TokenList::newNode();
-					node->type = TokenType::MultilineCommentContent;
-					continue;
-				};
-
-				node->value += parser.input;
-				parser.input.read();
-			};
-
-			TokenList::pushToTail(token, node);
-
-			token->value += "*/";
-
+		if(isMultilineCommentNot3(parser, node, level)&&
+			(isNewLine(parser, node, level)||
+			parser.inputIsTokenAny(TokenType::MultilineComment, node))) {
+			Parser::tokenTransferChild(token, node);
+			TokenList::destructor(node);
 			return true;
 		};
 
-		parser.memoizationSetFalse(TokenType::MultilineComment);
+		parser.inputRestore(position);
+		TokenList::destructor(node);
+		return false;
+	};
+
+	static bool isMultilineCommentZeroOrMore1(Parser &parser, Token *token, int level) {
+		Token *node = token;
+		size_t loopPosition;
+
+		while(!parser.input.isEof()) {
+			loopPosition = parser.inputPosition();
+			if(!(isMultilineCommentSequence2(parser, node, level))) {
+				break;
+			};
+			if(parser.inputPosition() == loopPosition) {
+				break;
+			};
+		};
+		return true;
+	};
+
+	// MultilineComment = "/*" & (!"*/" & (NewLine | .))* & "*/";
+	bool isMultilineComment(Parser &parser, Token *token, int level) {
+		Token *node;
+		size_t position;
+		if(!parser.codeBegin(node, TokenType::MultilineComment, level, position)) {
+			return false;
+		};
+
+		if(parser.inputIsToken("/*", TokenType::MultilineComment, node)&&
+			isMultilineCommentZeroOrMore1(parser, node, level)&&
+			parser.inputIsToken("*/", TokenType::MultilineComment, node)) {
+			parser.codeEndTrue(token, node);
+			return true;
+		};
+
+		parser.codeEndFalse(node, TokenType::MultilineComment, position);
 		return false;
 	};
 
 };
+

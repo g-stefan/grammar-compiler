@@ -7,28 +7,32 @@
 #ifndef XYO_GRAMMARCOMPILER_APPLICATION_TRANSFORMER_HPP
 #define XYO_GRAMMARCOMPILER_APPLICATION_TRANSFORMER_HPP
 
-#ifndef XYO_GRAMMARCOMPILER_PARSER_HPP
-#	include <XYO/GrammarCompiler/Parser.hpp>
+#ifndef XYO_GRAMMARCOMPILER_APPLICATION_GRAMMAR_HPP
+#	include <XYO/GrammarCompiler.Application/Grammar.hpp>
 #endif
 
+// Grammar transformations, see input/Grammar.transform.txt
 namespace XYO::GrammarCompiler::Application::Transformer {
 
-	int expressionOperatorPrecedenceGetLevel(Token *token);
-	bool expressionOperatorPrecedenceScan(Token *termBegin, int level, Token *&termEnd, int &nextLevel);
-	void expressionOperatorPrecedenceSubstitute(Token *termBegin, Token *termEnd, Token *&newTerm);
-	void expressionOperatorPrecedenceLevel(Token *token, int lastLevel, int level);
-	void expressionOperatorPrecedenceSubType(Token *&token);
-	void expressionOperatorPrecedence(Token *&token);
+	struct Context {
+			GrammarNode *rule;
+			String *warning;
+	};
 
-	void removeNoise(Token *&token);
-	void transform(Token *&token);
-	void orderOperations(Token *&token);
-	void statementOperations(Token *&token);
-	void statementExpressionPrecedence(Token *&token);
+	// node must be detached, returns the simplified node
+	GrammarNode *simplify(GrammarNode *node, Context &context);
+	void simplifyRule(GrammarNode *rule, Context &context);
+	bool removeLeftRecursion(GrammarNode *rule, Context &context, String &error);
 
-	void process(Token *&token);
+	bool isNullable(GrammarNode *node);
+	bool isAlwaysSuccess(GrammarNode *node);
+	void computeRuleProperties(GrammarNode *grammar);
+	bool checkLeftRecursion(GrammarNode *grammar, String &error);
+	void removeUnreachable(GrammarNode *node, Context &context);
+	void checkLoops(GrammarNode *node, Context &context);
 
-	size_t getLineCount(Token *&token);
+	bool process(GrammarNode *grammar, String &error, String &warning);
+
 };
 
 #endif

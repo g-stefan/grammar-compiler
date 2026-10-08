@@ -7,54 +7,96 @@
 #include <XYO/GrammarCompiler.Application/Code/Code.hpp>
 
 namespace XYO::GrammarCompiler::Application::Code {
+	using namespace XYO::GrammarCompiler;
 
-	bool isString(Parser &parser, Token *token, int level) {
-		if (parser.memoizationIsFalse(TokenType::String)) {
+	static bool isStringZeroOrMore1(Parser &parser, Token *token, int level);
+	static bool isStringSequence2(Parser &parser, Token *token, int level);
+	static bool isStringNot3(Parser &parser, Token *token, int level);
+	static bool isStringSequence4(Parser &parser, Token *token, int level);
+
+	static bool isStringNot3(Parser &parser, Token *token, int level) {
+		size_t position = parser.inputPosition();
+		Token *node = TokenList::newNode();
+
+		if(parser.inputIsToken("\"", TokenType::String, node)) {
+			parser.inputRestore(position);
+			TokenList::destructor(node);
 			return false;
 		};
 
-		--level;
-		if (level <= 0) {
-			throw std::runtime_error("parser-stack-overflow");
-		};
+		TokenList::destructor(node);
+		return true;
+	};
 
-		// ---
+	static bool isStringSequence4(Parser &parser, Token *token, int level) {
+		size_t position = parser.inputPosition();
+		Token *node = TokenList::newNode();
+		node->type = TokenType::String;
 
-		if (parser.input == '\"') {
-			Token *node = TokenList::newNode();
-			node->type = TokenType::String;
-			node->value = "";
-
-			node->value += '\"';
-			while (parser.input.read()) {
-				if (parser.input != '\"') {
-					if (parser.input == '\\') {
-						node->value += '\\';
-						if (parser.input.read()) {
-							node->value += parser.input;
-							continue;
-						} else {
-							parser.codeEndFalse(node, TokenType::String);
-							return false;
-						};
-					};
-
-					node->value += parser.input;
-				} else {
-					node->value += parser.input;
-					parser.input.read();
-
-					TokenList::pushToTail(token, node);
-					return true;
-				};
-			};
-
-			parser.inputRestore(node);
+		if(parser.inputIsToken("\\", TokenType::String, node)&&
+			parser.inputIsTokenAny(TokenType::String, node)) {
+			Parser::tokenTransferChild(token, node);
 			TokenList::destructor(node);
+			return true;
 		};
 
-		parser.memoizationSetFalse(TokenType::String);
+		parser.inputRestore(position);
+		TokenList::destructor(node);
+		return false;
+	};
+
+	static bool isStringSequence2(Parser &parser, Token *token, int level) {
+		size_t position = parser.inputPosition();
+		Token *node = TokenList::newNode();
+		node->type = TokenType::String;
+
+		if(isStringNot3(parser, node, level)&&
+			(isStringSequence4(parser, node, level)||
+			parser.inputIsTokenAny(TokenType::String, node))) {
+			Parser::tokenTransferChild(token, node);
+			TokenList::destructor(node);
+			return true;
+		};
+
+		parser.inputRestore(position);
+		TokenList::destructor(node);
+		return false;
+	};
+
+	static bool isStringZeroOrMore1(Parser &parser, Token *token, int level) {
+		Token *node = token;
+		size_t loopPosition;
+
+		while(!parser.input.isEof()) {
+			loopPosition = parser.inputPosition();
+			if(!(isStringSequence2(parser, node, level))) {
+				break;
+			};
+			if(parser.inputPosition() == loopPosition) {
+				break;
+			};
+		};
+		return true;
+	};
+
+	// String = "\"" & (!"\"" & ("\\" & . | .))* & "\"";
+	bool isString(Parser &parser, Token *token, int level) {
+		Token *node;
+		size_t position;
+		if(!parser.codeBegin(node, TokenType::String, level, position)) {
+			return false;
+		};
+
+		if(parser.inputIsToken("\"", TokenType::String, node)&&
+			isStringZeroOrMore1(parser, node, level)&&
+			parser.inputIsToken("\"", TokenType::String, node)) {
+			parser.codeEndTrue(token, node);
+			return true;
+		};
+
+		parser.codeEndFalse(node, TokenType::String, position);
 		return false;
 	};
 
 };
+

@@ -8,72 +8,36 @@
 
 namespace XYO::GrammarCompiler {
 
-	Input::Input(size_t stackSize_) {
-		if (stackSize_ == 0) {
-			stackSize_ = 16384;
-		};
-
-		iRead = nullptr;
-		stackSize = stackSize_;
-		stackIndex = 0;
+	Input::Input() {
+		buffer = content.value();
+		size = 0;
+		position = 0;
+		farthestPosition = 0;
 		input = 0;
-		eof = false;
-		inputStack = new char[stackSize]();
-		fileIndex = 0;
 	};
 
-	Input::~Input() {
-		delete[] inputStack;
+	Input::~Input(){};
+
+	void Input::setContent(const String &value) {
+		content = value;
+		buffer = content.value();
+		size = content.length();
+		farthestPosition = 0;
+		setPosition(0);
 	};
 
-	void Input::setIRead(IRead *value) {
-		iRead = value;
-	};
-
-	bool Input::push() {
-		if (stackIndex == stackSize) {
-			return false;
+	size_t Input::getLineNumber(size_t position_) {
+		size_t line = 1;
+		size_t k;
+		if (position_ > size) {
+			position_ = size;
 		};
-		inputStack[stackIndex] = input;
-		++stackIndex;
-
-		--fileIndex;
-		return true;
-	};
-
-	bool Input::pop() {
-		if (stackIndex == 0) {
-			return false;
+		for (k = 0; k < position_; ++k) {
+			if (buffer[k] == '\n') {
+				++line;
+			};
 		};
-		--stackIndex;
-		input = inputStack[stackIndex];
-
-		++fileIndex;
-		return true;
-	};
-
-	bool Input::read() {
-		if (stackIndex) {
-			return pop();
-		};
-		if (eof) {
-			input = 0;
-			return false;
-		};
-		if (iRead->read(&input, 1)) {
-			++fileIndex;
-			return true;
-		};
-		input = 0;
-		eof = true;
-		return false;
-	};
-
-	bool Input::isEof() {
-		if (stackIndex) {
-			return false;
-		};
-		return eof;
+		return line;
 	};
 
 };
